@@ -13,7 +13,7 @@
       padding: 20px;
     }
     .container {
-      max-width: 600px;
+      max-width: 700px;
       margin: 0 auto;
       background: white;
       border-radius: 12px;
@@ -27,7 +27,28 @@
     }
     .subtitle {
       color: #666;
-      margin-bottom: 24px;
+      margin-bottom: 16px;
+    }
+    .mode-toggle {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .mode-btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: 2px solid #ddd;
+      background: white;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .mode-btn.active {
+      border-color: #4CAF50;
+      background: #e8f5e9;
+      color: #2e7d32;
     }
     .upload-area {
       border: 2px dashed #ddd;
@@ -38,16 +59,12 @@
       cursor: pointer;
       transition: border-color 0.2s;
     }
-    .upload-area:hover {
-      border-color: #999;
-    }
+    .upload-area:hover { border-color: #999; }
     .upload-area.has-file {
       border-color: #4CAF50;
       background: #f9f9f9;
     }
-    .upload-area input {
-      display: none;
-    }
+    .upload-area input { display: none; }
     .preview {
       max-width: 100%;
       max-height: 300px;
@@ -55,23 +72,11 @@
       display: none;
       margin: 0 auto;
     }
-    .upload-area.has-file .preview {
-      display: block;
-    }
-    .upload-text {
-      color: #666;
-    }
-    .upload-area.has-file .upload-text {
-      display: none;
-    }
-    .question-area {
-      margin-bottom: 16px;
-    }
-    label {
-      display: block;
-      margin-bottom: 8px;
-      font-weight: 500;
-    }
+    .upload-area.has-file .preview { display: block; }
+    .upload-text { color: #666; }
+    .upload-area.has-file .upload-text { display: none; }
+    .question-area { margin-bottom: 16px; }
+    label { display: block; margin-bottom: 8px; font-weight: 500; }
     textarea {
       width: 100%;
       padding: 12px;
@@ -81,10 +86,7 @@
       min-height: 80px;
       resize: vertical;
     }
-    textarea:focus {
-      outline: none;
-      border-color: #4CAF50;
-    }
+    textarea:focus { outline: none; border-color: #4CAF50; }
     .btn {
       width: 100%;
       padding: 14px;
@@ -97,13 +99,8 @@
       cursor: pointer;
       transition: background 0.2s;
     }
-    .btn:hover {
-      background: #45a049;
-    }
-    .btn:disabled {
-      background: #ccc;
-      cursor: not-allowed;
-    }
+    .btn:hover { background: #45a049; }
+    .btn:disabled { background: #ccc; cursor: not-allowed; }
     .error {
       background: #ffebee;
       color: #c62828;
@@ -112,9 +109,7 @@
       margin-bottom: 16px;
       display: none;
     }
-    .error.show {
-      display: block;
-    }
+    .error.show { display: block; }
     .answer {
       background: #e8f5e9;
       padding: 16px;
@@ -131,18 +126,91 @@
       border-top: 3px solid #4CAF50;
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin: 0 auto;
+      margin: 20px auto;
     }
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
+    .timeline {
+      margin-top: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .step {
+      padding: 12px 16px;
+      border-radius: 8px;
+      border-left: 4px solid;
+    }
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 8px;
+      font-weight: 500;
+      font-size: 13px;
+    }
+    .step-content {
+      font-family: monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      line-height: 1.5;
+      background: rgba(0,0,0,0.03);
+      padding: 10px;
+      border-radius: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .step-think {
+      background: #e3f2fd;
+      border-color: #2196F3;
+    }
+    .step-think .step-header { color: #1565C0; }
+    .step-code {
+      background: #263238;
+      border-color: #ff9800;
+      color: #fff;
+    }
+    .step-code .step-header { color: #ffb74d; }
+    .step-code .step-content {
+      background: rgba(255,255,255,0.1);
+      color: #a5d6a7;
+    }
+    .step-output {
+      background: #e8f5e9;
+      border-color: #4CAF50;
+    }
+    .step-output .step-header { color: #2e7d32; }
+    .step-output .step-content { color: #1b5e20; }
+    .final-answer {
+      background: #fff3e0;
+      border: 2px solid #ff9800;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 16px;
+    }
+    .final-answer h3 {
+      color: #e65100;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .final-answer p { white-space: pre-wrap; line-height: 1.6; }
   </style>
 </head>
 <body>
   <div class="container">
     <h1>Gemini Vision</h1>
     <p class="subtitle">Upload an image and ask questions about it</p>
+
+    <div class="mode-toggle">
+      <button class="mode-btn active" id="modeStandard" onclick="setMode('standard')">
+        Standard Mode
+      </button>
+      <button class="mode-btn" id="modeAgentic" onclick="setMode('agentic')">
+        Agentic Mode (with code execution)
+      </button>
+    </div>
 
     <div class="error" id="error"></div>
 
@@ -164,10 +232,12 @@
 
     <div class="spinner" id="spinner"></div>
     <div class="answer" id="answer" style="display: none;"></div>
+    <div class="timeline" id="timeline" style="display: none;"></div>
   </div>
 
   <script>
     const MAX_SIZE = 5 * 1024 * 1024;
+    let currentMode = 'standard';
     const uploadArea = document.getElementById('uploadArea');
     const fileInput = document.getElementById('fileInput');
     const preview = document.getElementById('preview');
@@ -176,19 +246,25 @@
     const spinner = document.getElementById('spinner');
     const answerDiv = document.getElementById('answer');
     const errorDiv = document.getElementById('error');
+    const timeline = document.getElementById('timeline');
 
     uploadArea.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', handleFile);
 
+    function setMode(mode) {
+      currentMode = mode;
+      document.getElementById('modeStandard').classList.toggle('active', mode === 'standard');
+      document.getElementById('modeAgentic').classList.toggle('active', mode === 'agentic');
+      clearResults();
+    }
+
     function handleFile(e) {
       const file = e.target.files[0];
       if (!file) return;
-
       if (file.size > MAX_SIZE) {
         showError('File too large. Maximum size is 5MB.');
         return;
       }
-
       uploadArea.classList.add('has-file');
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -211,47 +287,77 @@
       errorDiv.classList.remove('show');
     }
 
+    function clearResults() {
+      answerDiv.style.display = 'none';
+      timeline.style.display = 'none';
+    }
+
+    function renderTimeline(steps, finalAnswer) {
+      timeline.innerHTML = '';
+      steps.forEach((step, i) => {
+        const stepDiv = document.createElement('div');
+        stepDiv.className = `step step-${step.type}`;
+        const icons = { think: '🤔', code: '🐍', output: '📊' };
+        const labels = { think: 'Thinking', code: 'Code Execution', output: 'Output' };
+        stepDiv.innerHTML = `
+          <div class="step-header">${icons[step.type] || '📝'} ${labels[step.type] || step.type}</div>
+          <div class="step-content">${escapeHtml(step.content)}</div>
+        `;
+        timeline.appendChild(stepDiv);
+      });
+      if (finalAnswer) {
+        const answerDiv2 = document.createElement('div');
+        answerDiv2.className = 'final-answer';
+        answerDiv2.innerHTML = `<h3>Final Answer</h3><p>${finalAnswer}</p>`;
+        timeline.appendChild(answerDiv2);
+      }
+      timeline.style.display = 'flex';
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
     async function analyze() {
       const file = fileInput.files[0];
       if (!file) {
         showError('Please select an image first.');
         return;
       }
-
       if (file.size > MAX_SIZE) {
         showError('File too large. Maximum size is 5MB.');
         return;
       }
-
       const questionText = question.value.trim();
       if (!questionText) {
         showError('Please enter a question.');
         return;
       }
-
       hideError();
+      clearResults();
       submitBtn.disabled = true;
       spinner.style.display = 'block';
-      answerDiv.style.display = 'none';
 
       const formData = new FormData();
       formData.append('file', file);
       formData.append('question', questionText);
 
       try {
-        const res = await fetch('/api/analyze', {
+        const endpoint = currentMode === 'agentic' ? '/api/analyze/agentic' : '/api/analyze';
+        const res = await fetch(endpoint, {
           method: 'POST',
           body: formData
         });
-
         const data = await res.json();
-
-        if (!res.ok) {
-          throw new Error(data.detail || 'An error occurred');
+        if (!res.ok) throw new Error(data.detail || 'An error occurred');
+        if (currentMode === 'agentic') {
+          renderTimeline(data.steps || [], data.answer || '');
+        } else {
+          answerDiv.textContent = data.answer || 'No answer received';
+          answerDiv.style.display = 'block';
         }
-
-        answerDiv.textContent = data.answer || 'No answer received';
-        answerDiv.style.display = 'block';
       } catch (err) {
         showError(err.message);
       } finally {
@@ -262,9 +368,7 @@
 
     submitBtn.addEventListener('click', analyze);
     question.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' && e.ctrlKey) {
-        analyze();
-      }
+      if (e.key === 'Enter' && e.ctrlKey) analyze();
     });
   </script>
 </body>

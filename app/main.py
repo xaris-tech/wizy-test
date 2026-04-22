@@ -7,6 +7,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
+from dataclasses import asdict
 from dotenv import load_dotenv
 
 from app.gemini_client import GeminiClient
@@ -92,6 +93,30 @@ async def analyze(
     try:
         answer = client.analyze(contents, question)
         return {"answer": answer}
+    except Exception as e:
+        logger.error(f"Gemini API error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/analyze/agentic")
+async def analyze_agentic(
+    file: UploadFile = File(...),
+    question: str = Form(...)
+):
+    if file.size and file.size > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Max 5MB.")
+
+    contents = await file.read()
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Max 5MB.")
+
+    if not contents:
+        raise HTTPException(status_code=400, detail="Empty file")
+
+    client = GeminiClient(GEMINI_API_KEY)
+    try:
+        result = client.analyze_agentic(contents, question)
+        return asdict(result)
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
