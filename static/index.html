@@ -336,7 +336,7 @@
       const file = e.target.files[0];
       if (!file) return;
       if (file.size > MAX_SIZE) {
-        showError('File too large. Maximum size is 5MB.');
+        showError('File too large. Max 5MB.');
         return;
       }
       uploadArea.classList.add('has-file');
@@ -353,9 +353,9 @@
     }
 
     function showError(msg) {
-      // Handle structured error responses
+      // Handle structured error or plain message
       if (typeof msg === 'object' && msg.message) {
-        errorDiv.textContent = `[${msg.code}] ${msg.message}`;
+        errorDiv.textContent = msg.message;
       } else {
         errorDiv.textContent = msg;
       }
@@ -434,7 +434,7 @@
         return;
       }
       if (file.size > MAX_SIZE) {
-        showError('File too large. Maximum size is 5MB.');
+        showError('File too large. Max 5MB.');
         return;
       }
       const questionText = question.value.trim();
@@ -483,8 +483,8 @@
                 try {
                   const step = JSON.parse(line.slice(6));
                   if (step.error) {
-                    const err = step.error;
-                    showError(err.code ? `[${err.code}] ${err.message}` : err.message || err);
+                    const err = step.error.message || step.error;
+                    showError(err);
                     break;
                   }
                   if (step.type === 'done') {

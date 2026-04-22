@@ -17,7 +17,6 @@ import httpx
 
 from app.gemini_client import get_gemini_client
 from app.middleware import RequestIDMiddleware
-from app.errors import ERROR_CODES, error_response
 
 load_dotenv()
 
@@ -92,23 +91,14 @@ async def analyze(
     question: str = Form(...)
 ):
     if file.size and file.size > 5 * 1024 * 1024:
-        raise HTTPException(
-            status_code=400,
-            detail=error_response("FILE_TOO_LARGE", "File too large. Maximum size is 5MB.")
-        )
+        raise HTTPException(status_code=400, detail="File too large. Max 5MB.")
 
     contents = await file.read()
     if len(contents) > 5 * 1024 * 1024:
-        raise HTTPException(
-            status_code=400,
-            detail=error_response("FILE_TOO_LARGE", "File too large. Maximum size is 5MB.")
-        )
+        raise HTTPException(status_code=400, detail="File too large. Max 5MB.")
 
     if not contents:
-        raise HTTPException(
-            status_code=400,
-            detail=error_response("EMPTY_FILE", "Empty file uploaded.")
-        )
+        raise HTTPException(status_code=400, detail="Empty file")
 
     client = get_gemini_client()
     try:
@@ -116,7 +106,7 @@ async def analyze(
         return {"answer": answer}
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
-        raise HTTPException(status_code=500, detail=error_response("ANALYSIS_FAILED", "Analysis failed. Please try again."))
+        raise HTTPException(status_code=500, detail="Analysis failed. Please try again.")
 
 
 @app.post("/api/analyze/agentic")
@@ -125,23 +115,14 @@ async def analyze_agentic(
     question: str = Form(...)
 ):
     if file.size and file.size > 5 * 1024 * 1024:
-        raise HTTPException(
-            status_code=400,
-            detail=error_response("FILE_TOO_LARGE", "File too large. Maximum size is 5MB.")
-        )
+        raise HTTPException(status_code=400, detail="File too large. Max 5MB.")
 
     contents = await file.read()
     if len(contents) > 5 * 1024 * 1024:
-        raise HTTPException(
-            status_code=400,
-            detail=error_response("FILE_TOO_LARGE", "File too large. Maximum size is 5MB.")
-        )
+        raise HTTPException(status_code=400, detail="File too large. Max 5MB.")
 
     if not contents:
-        raise HTTPException(
-            status_code=400,
-            detail=error_response("EMPTY_FILE", "Empty file uploaded.")
-        )
+        raise HTTPException(status_code=400, detail="Empty file")
 
     client = get_gemini_client()
     try:
@@ -149,7 +130,7 @@ async def analyze_agentic(
         return asdict(result)
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
-        raise HTTPException(status_code=500, detail=error_response("ANALYSIS_FAILED", "Analysis failed. Please try again."))
+        raise HTTPException(status_code=500, detail="Analysis failed. Please try again.")
 
 
 async def generate_agentic_stream(image_data: bytes, question: str, client) -> AsyncGenerator[str, None]:
@@ -177,7 +158,7 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
 
         candidates = data.get("candidates", [])
         if not candidates:
-            yield "data: " + json.dumps(error_response("ANALYSIS_FAILED", "No response from Gemini")) + "\n\n"
+            yield "data: " + json.dumps({"error": "Analysis failed. Please try again."}) + "\n\n"
             return
 
         content = candidates[0].get("content", {})
@@ -230,7 +211,7 @@ async def analyze_agentic_stream(
             yield "data: " + json.dumps({"type": "done"}) + "\n\n"
         except Exception as e:
             logger.error(f"Streaming error: {e}")
-            yield "data: " + json.dumps(error_response("ANALYSIS_FAILED", "Analysis failed. Please try again.")) + "\n\n"
+            yield "data: " + json.dumps({"error": "Analysis failed. Please try again."}) + "\n\n"
 
     return StreamingResponse(
         event_generator(),
@@ -270,10 +251,7 @@ async def followup(
 
     image_data = await get_session(session_id)
     if not image_data:
-        raise HTTPException(
-            status_code=404,
-            detail=error_response("SESSION_NOT_FOUND", "Session expired. Please upload a new image.")
-        )
+        raise HTTPException(status_code=404, detail="Session expired. Please upload a new image.")
 
     client = get_gemini_client()
     try:
