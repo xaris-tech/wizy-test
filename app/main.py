@@ -177,7 +177,7 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
 
         candidates = data.get("candidates", [])
         if not candidates:
-            yield "data: " + json.dumps({"error": "No response from Gemini"}) + "\n\n"
+            yield "data: " + json.dumps(error_response("ANALYSIS_FAILED", "No response from Gemini")) + "\n\n"
             return
 
         content = candidates[0].get("content", {})
@@ -230,7 +230,7 @@ async def analyze_agentic_stream(
             yield "data: " + json.dumps({"type": "done"}) + "\n\n"
         except Exception as e:
             logger.error(f"Streaming error: {e}")
-            yield "data: " + json.dumps({"error": "Analysis failed"}) + "\n\n"
+            yield "data: " + json.dumps(error_response("ANALYSIS_FAILED", "Analysis failed. Please try again.")) + "\n\n"
 
     return StreamingResponse(
         event_generator(),
