@@ -127,6 +127,17 @@ gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8080 app.main:app
 2. Create API key
 3. Use in local `.env` or Render dashboard
 
+### Multiple API Keys (Failover)
+
+To use multiple API keys (auto-rotates on quota errors):
+
+```bash
+# In .env or Render dashboard
+GEMINI_API_KEYS=key1,key2,key3
+```
+
+When one key hits quota (429/503), the system automatically rotates to the next key.
+
 ## License
 
 MIT

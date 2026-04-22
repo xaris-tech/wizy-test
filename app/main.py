@@ -10,16 +10,19 @@ from fastapi.responses import JSONResponse
 from dataclasses import asdict
 from dotenv import load_dotenv
 
-from app.gemini_client import GeminiClient
+from app.gemini_client import get_gemini_client
 
 load_dotenv()
 
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-PORT = int(os.getenv("PORT", "8080"))
+# Support single key or multiple keys (comma-separated)
+single_key = os.getenv("GEMINI_API_KEY", "")
+multi_keys = os.getenv("GEMINI_API_KEYS", "")
 
-if not GEMINI_API_KEY:
-    logging.critical("GEMINI_API_KEY is required. Set it in .env or environment.")
-    raise ValueError("GEMINI_API_KEY is required")
+if not single_key and not multi_keys:
+    logging.critical("GEMINI_API_KEY or GEMINI_API_KEYS is required. Set in .env or environment.")
+    raise ValueError("GEMINI_API_KEY or GEMINI_API_KEYS is required")
+
+PORT = int(os.getenv("PORT", "8080"))
 
 logging.basicConfig(
     level=logging.INFO,
@@ -89,7 +92,7 @@ async def analyze(
     if not contents:
         raise HTTPException(status_code=400, detail="Empty file")
 
-    client = GeminiClient(GEMINI_API_KEY)
+    client = get_gemini_client()
     try:
         answer = client.analyze(contents, question)
         return {"answer": answer}
@@ -113,7 +116,7 @@ async def analyze_agentic(
     if not contents:
         raise HTTPException(status_code=400, detail="Empty file")
 
-    client = GeminiClient(GEMINI_API_KEY)
+    client = get_gemini_client()
     try:
         result = client.analyze_agentic(contents, question)
         return asdict(result)

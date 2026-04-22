@@ -183,6 +183,21 @@
     }
     .step-output .step-header { color: #2e7d32; }
     .step-output .step-content { color: #1b5e20; }
+    .step-observe {
+      background: #f3e5f5;
+      border-color: #9c27b0;
+    }
+    .step-observe .step-header { color: #7b1fa2; }
+    .step-observe .step-content {
+      background: transparent;
+      padding: 0;
+    }
+    .step-observe img {
+      max-width: 100%;
+      border-radius: 4px;
+      margin-top: 8px;
+      border: 2px solid #9c27b0;
+    }
     .final-answer {
       background: #fff3e0;
       border: 2px solid #ff9800;
@@ -297,11 +312,19 @@
       steps.forEach((step, i) => {
         const stepDiv = document.createElement('div');
         stepDiv.className = `step step-${step.type}`;
-        const icons = { think: '🤔', code: '🐍', output: '📊' };
-        const labels = { think: 'Thinking', code: 'Code Execution', output: 'Output' };
+        const icons = { think: '🤔', code: '🐍', output: '📊', observe: '🔍' };
+        const labels = { think: 'Thinking', code: 'Code Execution', output: 'Output', observe: 'Observe' };
+        let contentHtml = escapeHtml(step.content);
+        
+        // Handle observe steps with intermediate images
+        if (step.type === 'observe' && step.image_data) {
+          const mimeType = step.image_mime_type || 'image/png';
+          contentHtml = `<img src="data:${mimeType};base64,${step.image_data}" alt="Intermediate result">`;
+        }
+        
         stepDiv.innerHTML = `
           <div class="step-header">${icons[step.type] || '📝'} ${labels[step.type] || step.type}</div>
-          <div class="step-content">${escapeHtml(step.content)}</div>
+          <div class="step-content">${contentHtml}</div>
         `;
         timeline.appendChild(stepDiv);
       });
