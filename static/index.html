@@ -305,6 +305,7 @@
     function clearResults() {
       answerDiv.style.display = 'none';
       timeline.style.display = 'none';
+      timeline.innerHTML = '';
     }
 
     function renderTimeline(steps, finalAnswer) {
@@ -343,6 +344,25 @@
       return div.innerHTML;
     }
 
+    function createStepElement(step) {
+      const stepDiv = document.createElement('div');
+      stepDiv.className = `step step-${step.type}`;
+      const icons = { think: '🤔', code: '🐍', output: '📊', observe: '🔍' };
+      const labels = { think: 'Thinking', code: 'Code Execution', output: 'Output', observe: 'Observe' };
+      let contentHtml = escapeHtml(step.content || '');
+      
+      if (step.type === 'observe' && step.image_data) {
+        const mimeType = step.image_mime_type || 'image/png';
+        contentHtml = `<img src="data:${mimeType};base64,${step.image_data}" alt="Intermediate result">`;
+      }
+      
+      stepDiv.innerHTML = `
+        <div class="step-header">${icons[step.type] || '📝'} ${labels[step.type] || step.type}</div>
+        <div class="step-content">${contentHtml}</div>
+      `;
+      return stepDiv;
+    }
+
     async function analyze() {
       const file = fileInput.files[0];
       if (!file) {
@@ -368,21 +388,64 @@
       formData.append('question', questionText);
 
       try {
-        const endpoint = currentMode === 'agentic' ? '/api/analyze/agentic' : '/api/analyze';
-        const res = await fetch(endpoint, {
-          method: 'POST',
-          body: formData
-        });
-        const data = await res.json();
-        if (!res.ok) throw new Error(data.detail || 'An error occurred');
         if (currentMode === 'agentic') {
-          renderTimeline(data.steps || [], data.answer || '');
+          // Use streaming endpoint for real-time step-by-step display
+          const res = await fetch('/api/analyze/agentic/stream', {
+            method: 'POST',
+            body: formData
+          });
+          
+          if (!res.ok) {
+            const data = await res.json();
+            throw new Error(data.detail || 'An error occurred');
+          }
+          
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            
+            // Parse SSE messages
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const step = JSON.parse(line.slice(6));
+                  if (step.error) {
+                    showError(step.error);
+                    break;
+                  }
+                  if (step.type === 'done') {
+                    continue;
+                  }
+                  // Render each step immediately
+                  timeline.appendChild(createStepElement(step));
+                  timeline.style.display = 'flex';
+                  // Scroll to bottom
+                  timeline.scrollTop = timeline.scrollHeight;
+                } catch (e) {}
+              }
+            }
+          }
         } else {
+          // Standard mode (non-streaming)
+          const res = await fetch('/api/analyze', {
+            method: 'POST',
+            body: formData
+          });
+          const data = await res.json();
+          if (!res.ok) throw new Error(data.detail || 'An error occurred');
           answerDiv.textContent = data.answer || 'No answer received';
           answerDiv.style.display = 'block';
         }
       } catch (err) {
-        showError(data.detail || 'An error occurred. Please try again.');
+        showError(err.message || 'An error occurred. Please try again.');
       } finally {
         submitBtn.disabled = false;
         spinner.style.display = 'none';
