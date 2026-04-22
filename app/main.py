@@ -16,6 +16,7 @@ from dotenv import load_dotenv
 import httpx
 
 from app.gemini_client import get_gemini_client
+from app.middleware import RequestIDMiddleware
 
 load_dotenv()
 
@@ -61,6 +62,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.add_middleware(RequestIDMiddleware)
 
 
 static_dir = Path(__file__).parent.parent / "static"
@@ -215,6 +218,48 @@ async def analyze_agentic_stream(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"}
     )
+
+
+@app.post("/api/analyze/session")
+async def create_session(
+    file: UploadFile = File(...),
+):
+    """Create a session and return session_id for multi-turn conversation."""
+    if file.size and file.size > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Max 5MB.")
+
+    contents = await file.read()
+    if len(contents) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Max 5MB.")
+
+    if not contents:
+        raise HTTPException(status_code=400, detail="Empty file")
+
+    from app.sessions import create_session
+    session_id = await create_session(contents)
+    return {"session_id": session_id}
+
+
+@app.post("/api/analyze/followup")
+async def followup(
+    session_id: str = Form(...),
+    question: str = Form(...)
+):
+    """Continue conversation with existing session."""
+    from app.sessions import get_session
+    from app.gemini_client import get_gemini_client
+
+    image_data = await get_session(session_id)
+    if not image_data:
+        raise HTTPException(status_code=404, detail="Session not found. Please upload a new image.")
+
+    client = get_gemini_client()
+    try:
+        answer = client.analyze(image_data, question)
+        return {"answer": answer, "session_id": session_id}
+    except Exception as e:
+        logger.error(f"Gemini API error: {e}")
+        raise HTTPException(status_code=500, detail="Analysis failed. Please try again.")
 
 
 if __name__ == "__main__":
