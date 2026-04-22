@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.git/
+.gitignore
+.env
+.env.example
+test.txt
+test.jpg
+test_api.py
+test_models.py
+*.md
+1day-sprint-plan.html
+.DS_Store

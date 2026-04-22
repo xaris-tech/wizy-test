@@ -1,0 +1,1265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>1-Day Sprint — Gemini Vision App</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+
+:root{
+  --bg:#f5f0e8;
+  --ink:#1a1612;
+  --ink2:#3d3830;
+  --muted:#8c8278;
+  --line:#d4cdc4;
+  --t1:#c8371a;
+  --t2:#1a5fc8;
+  --t3:#1a8c4e;
+  --warn:#c87a1a;
+  --blocker:#c8371a;
+  --done:#1a8c4e;
+  --surface:#ede8de;
+  --surface2:#e4ddd0;
+}
+
+body{
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'DM Sans',sans-serif;
+  font-weight:300;
+  line-height:1.6;
+  min-height:100vh;
+}
+
+/* Noise texture overlay */
+body::after{
+  content:'';
+  position:fixed;
+  inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+  pointer-events:none;
+  z-index:999;
+  opacity:0.5;
+}
+
+.page{max-width:860px;margin:0 auto;padding:56px 28px 100px}
+
+/* Header */
+header{
+  border-bottom:3px solid var(--ink);
+  padding-bottom:32px;
+  margin-bottom:48px;
+  animation:slideIn .5s ease both;
+}
+
+.header-top{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:16px;
+  flex-wrap:wrap;
+}
+
+.eyebrow{
+  font-family:'DM Mono',monospace;
+  font-size:11px;
+  letter-spacing:.15em;
+  text-transform:uppercase;
+  color:var(--muted);
+  margin-bottom:12px;
+}
+
+h1{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:clamp(3.5rem,10vw,6rem);
+  line-height:.95;
+  letter-spacing:.02em;
+  color:var(--ink);
+}
+
+h1 .red{color:var(--t1)}
+
+.header-meta{
+  text-align:right;
+  min-width:140px;
+}
+
+.big-time{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:3.5rem;
+  line-height:1;
+  color:var(--t1);
+}
+
+.time-label{
+  font-family:'DM Mono',monospace;
+  font-size:10px;
+  letter-spacing:.12em;
+  color:var(--muted);
+  text-transform:uppercase;
+  margin-top:4px;
+}
+
+.header-body{
+  margin-top:24px;
+  display:flex;
+  align-items:flex-start;
+  gap:32px;
+  flex-wrap:wrap;
+}
+
+.header-desc{
+  flex:1;
+  font-size:14px;
+  color:var(--ink2);
+  max-width:460px;
+  min-width:200px;
+}
+
+.tier-pills{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  align-items:center;
+}
+
+.pill{
+  font-family:'DM Mono',monospace;
+  font-size:11px;
+  padding:5px 12px;
+  border:1.5px solid currentColor;
+  border-radius:2px;
+  letter-spacing:.05em;
+}
+.pill.t1{color:var(--t1)}
+.pill.t2{color:var(--t2)}
+.pill.t3{color:var(--t3)}
+.pill.block{color:var(--blocker);background:rgba(200,55,26,.07)}
+
+/* Warning banner */
+.banner{
+  background:var(--ink);
+  color:var(--bg);
+  padding:14px 20px;
+  font-family:'DM Mono',monospace;
+  font-size:12px;
+  letter-spacing:.04em;
+  margin-bottom:48px;
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  animation:slideIn .5s .05s ease both;
+}
+.banner-icon{font-size:16px;flex-shrink:0}
+
+/* Timeline spine */
+.timeline{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  gap:0;
+}
+
+.timeline::before{
+  content:'';
+  position:absolute;
+  left:72px;
+  top:0;bottom:0;
+  width:2px;
+  background:var(--line);
+}
+
+/* Block */
+.block{
+  display:flex;
+  gap:0;
+  position:relative;
+  animation:fadeUp .4s ease both;
+}
+
+.block:nth-child(1){animation-delay:.05s}
+.block:nth-child(2){animation-delay:.08s}
+.block:nth-child(3){animation-delay:.11s}
+.block:nth-child(4){animation-delay:.14s}
+.block:nth-child(5){animation-delay:.17s}
+.block:nth-child(6){animation-delay:.20s}
+.block:nth-child(7){animation-delay:.23s}
+.block:nth-child(8){animation-delay:.26s}
+.block:nth-child(9){animation-delay:.29s}
+.block:nth-child(10){animation-delay:.32s}
+.block:nth-child(11){animation-delay:.35s}
+.block:nth-child(12){animation-delay:.38s}
+
+/* Time column */
+.time-col{
+  width:72px;
+  flex-shrink:0;
+  padding-top:20px;
+  padding-right:20px;
+  text-align:right;
+  position:relative;
+  z-index:1;
+}
+
+.time-str{
+  font-family:'DM Mono',monospace;
+  font-size:11px;
+  color:var(--muted);
+  line-height:1.3;
+}
+
+/* Dot on spine */
+.spine-dot{
+  position:absolute;
+  right:-6px;
+  top:26px;
+  width:12px;height:12px;
+  border-radius:50%;
+  border:2px solid var(--bg);
+  z-index:2;
+}
+
+/* Card column */
+.card-col{
+  flex:1;
+  padding:0 0 32px 28px;
+}
+
+.card{
+  background:white;
+  border:1.5px solid var(--line);
+  border-radius:4px;
+  overflow:hidden;
+}
+
+.card-head{
+  padding:14px 18px 12px;
+  border-bottom:1.5px solid var(--line);
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+  justify-content:space-between;
+}
+
+.card-title-wrap{display:flex;align-items:flex-start;gap:10px;flex:1}
+
+.card-icon{font-size:17px;flex-shrink:0;margin-top:1px}
+
+.card-title{
+  font-family:'DM Sans',sans-serif;
+  font-weight:500;
+  font-size:14px;
+  color:var(--ink);
+  line-height:1.3;
+}
+
+.card-subtitle{
+  font-size:11px;
+  color:var(--muted);
+  margin-top:2px;
+  font-style:italic;
+}
+
+.card-tier{
+  font-family:'DM Mono',monospace;
+  font-size:10px;
+  padding:3px 8px;
+  border:1px solid currentColor;
+  border-radius:2px;
+  white-space:nowrap;
+  flex-shrink:0;
+  letter-spacing:.04em;
+}
+.ct1{color:var(--t1)}
+.ct2{color:var(--t2)}
+.ct3{color:var(--t3)}
+.cinf{color:var(--muted)}
+.cblock{color:var(--blocker);font-weight:500}
+
+.card-body{padding:14px 18px}
+
+/* Tasks inside card */
+.task-list{display:flex;flex-direction:column;gap:8px}
+
+.task{
+  display:flex;
+  gap:10px;
+  align-items:flex-start;
+  padding:10px 12px;
+  background:var(--surface);
+  border-radius:3px;
+  border-left:3px solid transparent;
+  cursor:pointer;
+  transition:border-color .15s, background .15s;
+  user-select:none;
+}
+
+.task.t1-task{border-left-color:var(--t1)}
+.task.t2-task{border-left-color:var(--t2)}
+.task.t3-task{border-left-color:var(--t3)}
+.task.block-task{border-left-color:var(--blocker)}
+.task.inf-task{border-left-color:var(--line)}
+
+.task:hover{background:var(--surface2)}
+.task.done{opacity:.5}
+.task.done .task-text{text-decoration:line-through}
+
+.checkbox{
+  width:16px;height:16px;
+  border:1.5px solid var(--line);
+  border-radius:2px;
+  flex-shrink:0;
+  margin-top:1px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:10px;
+  transition:all .15s;
+  background:white;
+}
+.task.done .checkbox{
+  background:var(--done);
+  border-color:var(--done);
+  color:white;
+}
+.task.done .checkbox::after{content:'✓'}
+
+.task-content{flex:1}
+.task-text{font-size:13px;color:var(--ink);line-height:1.4;font-weight:400}
+.task-note{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.5;font-family:'DM Mono',monospace}
+
+/* Commit block */
+.commit-block{
+  margin-top:12px;
+  padding:12px 14px;
+  background:var(--ink);
+  border-radius:3px;
+}
+.commit-label{
+  font-family:'DM Mono',monospace;
+  font-size:9px;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:rgba(245,240,232,.4);
+  margin-bottom:6px;
+}
+.commit{
+  font-family:'DM Mono',monospace;
+  font-size:12px;
+  color:#a8d8a0;
+  line-height:1.8;
+}
+.commit::before{content:'> ';color:rgba(245,240,232,.3)}
+
+/* Alert strip */
+.alert{
+  margin-top:10px;
+  padding:10px 14px;
+  display:flex;
+  gap:8px;
+  align-items:flex-start;
+  font-size:12px;
+  border-radius:3px;
+  font-family:'DM Mono',monospace;
+}
+.alert.warn{background:rgba(200,122,26,.1);color:var(--warn);border:1px solid rgba(200,122,26,.25)}
+.alert.danger{background:rgba(200,55,26,.08);color:var(--t1);border:1px solid rgba(200,55,26,.2)}
+.alert.good{background:rgba(26,140,78,.08);color:var(--t3);border:1px solid rgba(26,140,78,.2)}
+
+/* Cut line */
+.cut-line{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin:8px 0 0 100px;
+  color:var(--warn);
+  font-family:'DM Mono',monospace;
+  font-size:11px;
+}
+.cut-line::before,.cut-line::after{
+  content:'';flex:1;height:1px;
+  background:repeating-linear-gradient(90deg,var(--warn) 0,var(--warn) 5px,transparent 5px,transparent 10px);
+}
+
+/* Cut label */
+.cut-label-block{
+  margin:0 0 0 100px;
+  padding:8px 14px;
+  background:rgba(200,122,26,.08);
+  border:1px dashed rgba(200,122,26,.35);
+  border-radius:3px;
+  font-family:'DM Mono',monospace;
+  font-size:11px;
+  color:var(--warn);
+  margin-bottom:4px;
+}
+
+/* Duration badge */
+.duration{
+  font-family:'DM Mono',monospace;
+  font-size:10px;
+  color:var(--muted);
+  margin-top:6px;
+}
+.duration span{
+  background:var(--surface);
+  padding:2px 6px;
+  border-radius:2px;
+  border:1px solid var(--line);
+}
+
+/* Summary footer */
+.summary{
+  margin-top:64px;
+  border-top:3px solid var(--ink);
+  padding-top:36px;
+  animation:fadeUp .4s .4s ease both;
+}
+.summary h2{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:2rem;
+  letter-spacing:.04em;
+  margin-bottom:24px;
+  color:var(--ink);
+}
+
+.checklist{display:flex;flex-direction:column;gap:8px}
+
+.check-row{
+  display:flex;
+  gap:12px;
+  align-items:flex-start;
+  padding:12px 16px;
+  background:white;
+  border:1.5px solid var(--line);
+  border-radius:3px;
+  cursor:pointer;
+  transition:border-color .15s;
+  user-select:none;
+}
+.check-row:hover{border-color:var(--ink)}
+.check-row.checked{border-color:var(--done);background:rgba(26,140,78,.04)}
+.check-row.checked .cb{background:var(--done);border-color:var(--done);color:white}
+.check-row.checked .cb::after{content:'✓'}
+.check-row.fail-item{border-color:rgba(200,55,26,.3)}
+.check-row.fail-item:hover{border-color:var(--t1)}
+
+.cb{
+  width:18px;height:18px;
+  border:1.5px solid var(--line);
+  border-radius:2px;
+  flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:11px;
+  margin-top:1px;
+  background:white;
+  transition:all .15s;
+}
+
+.check-text{flex:1}
+.check-main{font-size:13px;font-weight:400;color:var(--ink)}
+.check-sub{font-size:11px;color:var(--muted);margin-top:2px;font-family:'DM Mono',monospace}
+
+.fail-tag{
+  font-family:'DM Mono',monospace;
+  font-size:10px;
+  color:var(--t1);
+  border:1px solid rgba(200,55,26,.3);
+  padding:2px 7px;
+  border-radius:2px;
+  flex-shrink:0;
+  align-self:center;
+}
+
+/* Learning log reminder */
+.log-box{
+  margin-top:32px;
+  padding:20px 24px;
+  background:var(--ink);
+  color:var(--bg);
+  border-radius:4px;
+}
+.log-box h3{
+  font-family:'Bebas Neue',sans-serif;
+  font-size:1.4rem;
+  letter-spacing:.06em;
+  margin-bottom:12px;
+  color:var(--bg);
+}
+.log-items{display:flex;flex-direction:column;gap:6px}
+.log-item{
+  font-family:'DM Mono',monospace;
+  font-size:12px;
+  color:rgba(245,240,232,.65);
+  padding-left:16px;
+  position:relative;
+}
+.log-item::before{
+  content:'→';
+  position:absolute;left:0;
+  color:rgba(245,240,232,.3);
+}
+
+/* Animations */
+@keyframes slideIn{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeUp{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+
+@media(max-width:580px){
+  .timeline::before{left:0;display:none}
+  .time-col{display:none}
+  .card-col{padding-left:0}
+  .cut-line,.cut-label-block{margin-left:0}
+  .header-meta{text-align:left}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<!-- HEADER -->
+<header>
+  <div class="header-top">
+    <div>
+      <div class="eyebrow">// 1-day sprint plan · gemini vision app · fastapi + render</div>
+      <h1>ONE<br><span class="red">DAY.</span></h1>
+    </div>
+    <div class="header-meta">
+      <div class="big-time">18H</div>
+      <div class="time-label">Max execution window</div>
+      <div class="time-label" style="margin-top:8px;color:#1a1612">6 AM → 12 MN</div>
+    </div>
+  </div>
+  <div class="header-body">
+    <div class="header-desc">
+      All 3 tiers — Tier 1 MVP, Tier 2 Agentic Vision, Tier 3 Bonus — executed in a single day using Opencode + FastAPI (Python). Every block is time-boxed. If a block runs over, you cut — not quality, but scope. Tier 1 ships regardless.
+    </div>
+    <div class="tier-pills">
+      <span class="pill t1">T1 Required</span>
+      <span class="pill t2">T2 Agentic</span>
+      <span class="pill t3">T3 Bonus</span>
+      <span class="pill block">⛔ Non-negotiable</span>
+    </div>
+  </div>
+</header>
+
+<!-- BANNER -->
+<div class="banner">
+  <span class="banner-icon">⚡</span>
+  <span>RULE: Tier 1 must be deployed by the end of Block 4 (early afternoon). Everything after that is additive. A clean deployed T1 beats a broken T1+T2. Commit after EVERY block — not at the end of the day.</span>
+</div>
+
+<!-- TIMELINE -->
+<div class="timeline">
+
+  <!-- BLOCK 1 -->
+  <div class="block">
+    <div class="time-col">
+      <div class="time-str">6:00<br>AM</div>
+      <div class="spine-dot" style="background:var(--blocker)"></div>
+    </div>
+    <div class="card-col">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <span class="card-icon">🔐</span>
+            <div>
+              <div class="card-title">Block 1 — Repo + Security Baseline</div>
+              <div class="card-subtitle">Never skip this. A leaked key is an automatic fail.</div>
+            </div>
+          </div>
+          <span class="card-tier cblock">⛔ BLOCKER</span>
+        </div>
+        <div class="card-body">
+          <div class="task-list">
+            <div class="task block-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Create public GitHub repo</div>
+                <div class="task-note">README.md + LEARNING_LOG.md stubs exist from first commit</div>
+              </div>
+            </div>
+            <div class="task block-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Add .gitignore — cover .env, binaries, __pycache__, *.log</div>
+                <div class="task-note">Run: git status — confirm .env is NOT listed as tracked</div>
+              </div>
+            </div>
+            <div class="task block-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Create .env.example with GEMINI_API_KEY=your_key_here</div>
+                <div class="task-note">This is the only key-related file committed. Never the real .env.</div>
+              </div>
+            </div>
+            <div class="task inf-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Scaffold via Opencode — main.py, app/, utils/, static/index.html, Dockerfile, requirements.txt, .python-version</div>
+                <div class="task-note">app/ · main.py · static/index.html · Dockerfile · requirements.txt · .python-version</div>
+              </div>
+            </div>
+          </div>
+          <div class="commit-block">
+            <div class="commit-label">commit now</div>
+            <div class="commit">feat: scaffold project structure and gitignore</div>
+          </div>
+          <div class="alert danger">⛔ Do NOT proceed if .env is tracked. Run <code>git ls-files | grep .env</code> — must return nothing.</div>
+        </div>
+      </div>
+      <div class="duration">Time box: <span>45 min</span></div>
+    </div>
+  </div>
+
+  <!-- BLOCK 2 -->
+  <div class="block">
+    <div class="time-col">
+      <div class="time-str">6:45<br>AM</div>
+      <div class="spine-dot" style="background:var(--t1)"></div>
+    </div>
+    <div class="card-col">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <span class="card-icon">⚙️</span>
+            <div>
+              <div class="card-title">Block 2 — FastAPI Server + Gemini Client</div>
+              <div class="card-subtitle">Backend core. Use Opencode for boilerplate, validate every line.</div>
+            </div>
+          </div>
+          <span class="card-tier ct1">T1</span>
+        </div>
+        <div class="card-body">
+          <div class="task-list">
+            <div class="task t1-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">main.py — env loading, PORT, fail-fast if GEMINI_API_KEY missing</div>
+                <div class="task-note">Use os.getenv or python-dotenv. If key is empty, log.Fatal immediately. No silent failures.</div>
+              </div>
+            </div>
+            <div class="task t1-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Build app/gemini_client.py — Analyze() method</div>
+                <div class="task-note">POST to generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent · image as base64 inlineData · return first candidate text</div>
+              </div>
+            </div>
+            <div class="task t1-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Build POST /api/analyze endpoint</div>
+                <div class="task-note">multipart/form-data · server-side 5 MB check · return JSON {answer} or {error} · correct HTTP status codes</div>
+              </div>
+            </div>
+            <div class="task t1-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Add CORS middleware + panic recovery</div>
+                <div class="task-note">app/middleware/ · all error paths return JSON, never HTML · @app.middleware("http") to catch panics</div>
+              </div>
+            </div>
+            <div class="task inf-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Validate with curl BEFORE touching frontend</div>
+                <div class="task-note">curl -F image=@test.jpg -F question="what is this?" localhost:8080/api/analyze · also test with a 6 MB file — must get 400</div>
+              </div>
+            </div>
+          </div>
+          <div class="commit-block">
+            <div class="commit-label">commit now</div>
+            <div class="commit">feat: add gemini client with image analysis method</div>
+            <div class="commit">feat: add /api/analyze handler with size validation</div>
+            <div class="commit">feat: add cors middleware and error handling</div>
+          </div>
+        </div>
+      </div>
+      <div class="duration">Time box: <span>2 hrs</span></div>
+    </div>
+  </div>
+
+  <!-- BLOCK 3 -->
+  <div class="block">
+    <div class="time-col">
+      <div class="time-str">8:45<br>AM</div>
+      <div class="spine-dot" style="background:var(--t1)"></div>
+    </div>
+    <div class="card-col">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <span class="card-icon">🖥️</span>
+            <div>
+              <div class="card-title">Block 3 — Frontend + Dockerfile</div>
+              <div class="card-subtitle">Vanilla HTML/JS only. This is not graded on polish — get it working.</div>
+            </div>
+          </div>
+          <span class="card-tier ct1">T1</span>
+        </div>
+        <div class="card-body">
+          <div class="task-list">
+            <div class="task t1-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Build static/index.html — complete UI in one file</div>
+                <div class="task-note">File input (accept=image/*) · client-side 5 MB reject BEFORE fetch · textarea for question · loading spinner · answer div · error div · FormData POST to /api/analyze</div>
+              </div>
+            </div>
+            <div class="task t1-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Test client-side 5 MB validation</div>
+                <div class="task-note">Select a file larger than 5 MB — error must appear WITHOUT any network request. Check DevTools Network tab to confirm zero requests fired.</div>
+              </div>
+            </div>
+            <div class="task t1-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Write multi-stage Dockerfile</div>
+                <div class="task-note">Multi-stage Dockerfile: Stage 1: python:3.11-slim · install deps · Stage 2: python:3.11-slim · copy only requirements.txt + app/ · gunicorn — bind 0.0.0.0:$PORT default 8080</div>
+              </div>
+            </div>
+            <div class="task inf-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Docker build + run locally — full end-to-end test</div>
+                <div class="task-note">docker build -t gemini-vision . · docker run -p 8080:8080 -e GEMINI_API_KEY=xxx gemini-vision · open browser and test real image</div>
+              </div>
+            </div>
+          </div>
+          <div class="commit-block">
+            <div class="commit-label">commit now</div>
+            <div class="commit">feat: add frontend with loading and error states</div>
+            <div class="commit">feat: add multi-stage dockerfile with distroless</div>
+          </div>
+        </div>
+      </div>
+      <div class="duration">Time box: <span>1.5 hrs</span></div>
+    </div>
+  </div>
+
+  <!-- BLOCK 4 -->
+  <div class="block">
+    <div class="time-col">
+      <div class="time-str">10:15<br>AM</div>
+      <div class="spine-dot" style="background:var(--blocker)"></div>
+    </div>
+    <div class="card-col">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <span class="card-icon">🚀</span>
+            <div>
+              <div class="card-title">Block 4 — Deploy Tier 1 to Render</div>
+              <div class="card-subtitle">Tier 1 must be LIVE before 12 PM. Everything else is bonus.</div>
+            </div>
+          </div>
+          <span class="card-tier cblock">⛔ DEPLOY</span>
+        </div>
+        <div class="card-body">
+          <div class="task-list">
+            <div class="task block-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Push Docker image to GitHub and connect repo to Render</div>
+                <div class="task-note">git push origin main · Go to render.com → New Web Service → Connect GitHub repo · Select "Docker" as runtime</div>
+              </div>
+            </div>
+            <div class="task block-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Set GEMINI_API_KEY as an Environment Variable in Render dashboard</div>
+                <div class="task-note">Render Dashboard → Service → Environment → Add env var GEMINI_API_KEY=your_real_key · Never commit it. Render injects it at runtime.</div>
+              </div>
+            </div>
+            <div class="task block-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Deploy via Render — wait for build to succeed and grab public URL</div>
+                <div class="task-note">Render auto-builds on push · Watch deploy logs in dashboard · Once status shows "Live", copy the onrender.com URL for README and submission</div>
+              </div>
+            </div>
+            <div class="task inf-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Test the public URL cold (incognito, different device)</div>
+                <div class="task-note">Upload a real image, ask a real question. Confirm the answer renders. Copy the onrender.com public URL — it goes in README and your submission.</div>
+              </div>
+            </div>
+          </div>
+          <div class="commit-block">
+            <div class="commit-label">commit now</div>
+            <div class="commit">deploy: tier 1 live on render</div>
+            <div class="commit">docs: add readme with setup and deployment steps</div>
+          </div>
+          <div class="alert good">✅ TIER 1 CHECKPOINT — If it's past noon and T1 isn't live, stop here and fix it. A broken deploy is worse than no T2.</div>
+        </div>
+      </div>
+      <div class="duration">Time box: <span>1.25 hrs · target: live by 11:30 AM</span></div>
+    </div>
+  </div>
+
+  <!-- BREAK -->
+  <div class="cut-line">30 MIN BREAK + LUNCH — mandatory. You think better after it.</div>
+
+  <!-- BLOCK 5 -->
+  <div class="block">
+    <div class="time-col">
+      <div class="time-str">12:00<br>PM</div>
+      <div class="spine-dot" style="background:var(--t2)"></div>
+    </div>
+    <div class="card-col">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <span class="card-icon">📚</span>
+            <div>
+              <div class="card-title">Block 5 — Read Gemini Code Execution Docs</div>
+              <div class="card-subtitle">Most T2 failures come from skipping this. Spend real time here.</div>
+            </div>
+          </div>
+          <span class="card-tier ct2">T2 PREP</span>
+        </div>
+        <div class="card-body">
+          <div class="task-list">
+            <div class="task t2-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Read Gemini 2.0 Flash Code Execution API docs fully</div>
+                <div class="task-note">Understand: how to enable the code_execution tool · what the response parts array looks like · the 4 part types: text, executableCode, codeExecutionResult, inlineData</div>
+              </div>
+            </div>
+            <div class="task t2-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Make one raw test call and log the full JSON response to a file</div>
+                <div class="task-note">curl the API directly with code_execution enabled. Save response to raw_response.json (gitignored). Study the actual parts structure — don't guess it.</div>
+              </div>
+            </div>
+          </div>
+          <div class="alert warn">⚠️ Do not write the parser before seeing a real response. The parts structure is the thing you're building against.</div>
+        </div>
+      </div>
+      <div class="duration">Time box: <span>45 min</span></div>
+    </div>
+  </div>
+
+  <!-- BLOCK 6 -->
+  <div class="block">
+    <div class="time-col">
+      <div class="time-str">12:45<br>PM</div>
+      <div class="spine-dot" style="background:var(--t2)"></div>
+    </div>
+    <div class="card-col">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <span class="card-icon">🔬</span>
+            <div>
+              <div class="card-title">Block 6 — Agentic Gemini Client + Endpoint</div>
+              <div class="card-subtitle">New method on existing client. New route. Parse each part type.</div>
+            </div>
+          </div>
+          <span class="card-tier ct2">T2</span>
+        </div>
+        <div class="card-body">
+          <div class="task-list">
+            <div class="task t2-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Add AnalyzeAgentic() to app/gemini_client.py</div>
+                <div class="task-note">Model: gemini-2.0-flash · enable code_execution tool · define AgenticResult{Answer, Steps[]AgentStep, IntermediateImages} · AgentStep{Type, Content, ImageData}</div>
+              </div>
+            </div>
+            <div class="task t2-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Parse response parts — loop content.parts, switch on type field</div>
+                <div class="task-note">text → think step · executableCode → code step · codeExecutionResult → output step · inlineData (image) → append to IntermediateImages</div>
+              </div>
+            </div>
+            <div class="task t2-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Add POST /api/analyze/agentic handler</div>
+                <div class="task-note">Same multipart input. Call AnalyzeAgentic. Return full AgenticResult as JSON with base64-encoded images.</div>
+              </div>
+            </div>
+            <div class="task inf-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Validate with curl | jq — confirm steps array is populated</div>
+                <div class="task-note">Check that intermediate images arrive as base64 strings. Fix the parser here — before building the UI.</div>
+              </div>
+            </div>
+          </div>
+          <div class="commit-block">
+            <div class="commit-label">commit now</div>
+            <div class="commit">feat: add agentic gemini client with code execution parsing</div>
+            <div class="commit">feat: add /api/analyze/agentic endpoint</div>
+          </div>
+        </div>
+      </div>
+      <div class="duration">Time box: <span>2 hrs</span></div>
+    </div>
+  </div>
+
+  <!-- BLOCK 7 -->
+  <div class="block">
+    <div class="time-col">
+      <div class="time-str">2:45<br>PM</div>
+      <div class="spine-dot" style="background:var(--t2)"></div>
+    </div>
+    <div class="card-col">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <span class="card-icon">🎨</span>
+            <div>
+              <div class="card-title">Block 7 — Agentic Timeline UI + Redeploy</div>
+              <div class="card-subtitle">The timeline must be readable by a non-technical person.</div>
+            </div>
+          </div>
+          <span class="card-tier ct2">T2</span>
+        </div>
+        <div class="card-body">
+          <div class="task-list">
+            <div class="task t2-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Add Agentic toggle to index.html</div>
+                <div class="task-note">Toggle between Standard and Agentic mode. When active: POST to /api/analyze/agentic. Show timeline section below submit.</div>
+              </div>
+            </div>
+            <div class="task t2-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Render step cards with distinct visual styles per type</div>
+                <div class="task-note">🤔 Think → light blue · 🐍 Code → dark bg, monospace, syntax highlight · 📊 Output → light green · Images render inline · Final answer highlighted at bottom</div>
+              </div>
+            </div>
+            <div class="task inf-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">UX test — show timeline to someone unfamiliar with the project</div>
+                <div class="task-note">Can they follow the reasoning chain without your explanation? If not, relabel step headers. This is an explicit grading criterion.</div>
+              </div>
+            </div>
+            <div class="task t2-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Push changes + redeploy to Render</div>
+                <div class="task-note">git push origin main · Render auto-triggers rebuild. Test agentic mode on the public URL. Confirm intermediate images render in browser.</div>
+              </div>
+            </div>
+          </div>
+          <div class="commit-block">
+            <div class="commit-label">commit now</div>
+            <div class="commit">feat: add agentic timeline UI with step type rendering</div>
+            <div class="commit">deploy: tier 2 live on render</div>
+          </div>
+          <div class="alert good">✅ TIER 2 CHECKPOINT — T2 must be live and readable before starting T3. If it's past 5 PM and T2 isn't solid, polish T2 instead of rushing T3.</div>
+        </div>
+      </div>
+      <div class="duration">Time box: <span>2 hrs · target: T2 live by 4:45 PM</span></div>
+    </div>
+  </div>
+
+  <!-- CUT LINE T3 -->
+  <div class="cut-label-block">⚠️ TIER 3 STARTS HERE — Only proceed if T1 + T2 are both deployed and solid. If short on time, skip to Block 10 (docs + LEARNING_LOG) instead.</div>
+
+  <!-- BLOCK 8 -->
+  <div class="block">
+    <div class="time-col">
+      <div class="time-str">5:00<br>PM</div>
+      <div class="spine-dot" style="background:var(--t3)"></div>
+    </div>
+    <div class="card-col">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <span class="card-icon">📋</span>
+            <div>
+              <div class="card-title">Block 8 — Preset Templates + Request ID Logging</div>
+              <div class="card-subtitle">Two quick wins. Templates are frontend-only. Logging is one middleware.</div>
+            </div>
+          </div>
+          <span class="card-tier ct3">T3</span>
+        </div>
+        <div class="card-body">
+          <div class="task-list">
+            <div class="task t3-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Add 3 preset prompt buttons to index.html</div>
+                <div class="task-note">"Read Serial Number" · "Identify Components" · "Describe Condition" · Clicking fills textarea + optionally auto-submits. Pure frontend, no backend change.</div>
+              </div>
+            </div>
+            <div class="task t3-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Add request ID middleware with log/slog structured logging</div>
+                <div class="task-note">app/middleware/requestid.py · generate UUID per request · inject into request.state · all handlers log with request_id field · return X-Request-ID response header</div>
+              </div>
+            </div>
+          </div>
+          <div class="commit-block">
+            <div class="commit-label">commit now</div>
+            <div class="commit">feat: add preset prompt templates</div>
+            <div class="commit">feat: structured logging with request ID middleware</div>
+          </div>
+        </div>
+      </div>
+      <div class="duration">Time box: <span>1.5 hrs</span></div>
+    </div>
+  </div>
+
+  <!-- BLOCK 9 -->
+  <div class="block">
+    <div class="time-col">
+      <div class="time-str">6:30<br>PM</div>
+      <div class="spine-dot" style="background:var(--t3)"></div>
+    </div>
+    <div class="card-col">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <span class="card-icon">🌊</span>
+            <div>
+              <div class="card-title">Block 9 — SSE Streaming + Multi-turn Session</div>
+              <div class="card-subtitle">Hardest T3 items. Time-box strictly — partial is fine, broken is not.</div>
+            </div>
+          </div>
+          <span class="card-tier ct3">T3</span>
+        </div>
+        <div class="card-body">
+          <div class="task-list">
+            <div class="task t3-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Stream agentic steps via Server-Sent Events (SSE)</div>
+                <div class="task-note">text/event-stream headers · use Gemini streamGenerateContent endpoint · emit each AgentStep as it arrives · frontend EventSource appends cards live</div>
+              </div>
+            </div>
+            <div class="task t3-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Multi-turn: session state with in-memory map</div>
+                <div class="task-note">First request → store image bytes, return session_id UUID · POST /api/analyze/followup accepts {session_id, question} only · frontend shows follow-up input after first response</div>
+              </div>
+            </div>
+          </div>
+          <div class="commit-block">
+            <div class="commit-label">commit now (even if partial)</div>
+            <div class="commit">feat: stream agentic steps via SSE</div>
+            <div class="commit">feat: multi-turn session support</div>
+          </div>
+          <div class="alert warn">⚠️ If SSE is taking too long, commit what works and move on. A working non-streaming T2 is better than a broken streaming T2.</div>
+        </div>
+      </div>
+      <div class="duration">Time box: <span>2 hrs hard cap</span></div>
+    </div>
+  </div>
+
+  <!-- BLOCK 10 -->
+  <div class="block">
+    <div class="time-col">
+      <div class="time-str">8:30<br>PM</div>
+      <div class="spine-dot" style="background:var(--ink)"></div>
+    </div>
+    <div class="card-col">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <span class="card-icon">📝</span>
+            <div>
+              <div class="card-title">Block 10 — Final Deploy + README + LEARNING_LOG</div>
+              <div class="card-subtitle">Do not skip this. Docs and the log are graded as hard as the code.</div>
+            </div>
+          </div>
+          <span class="card-tier cblock">⛔ REQUIRED</span>
+        </div>
+        <div class="card-body">
+          <div class="task-list">
+            <div class="task block-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Final redeploy — confirm public URL works with all tiers</div>
+                <div class="task-note">Trigger redeploy on Render (push a new commit or click Manual Deploy). Test cold in incognito. Both /api/analyze and /api/analyze/agentic must return valid responses.</div>
+              </div>
+            </div>
+            <div class="task block-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Write README.md — all sections, written by you</div>
+                <div class="task-note">How to run locally · exact Render deploy steps you followed · architecture choices (why FastAPI, why Render, how image reaches Gemini, how parts are parsed) · what you'd do with more time (be specific)</div>
+              </div>
+            </div>
+            <div class="task block-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Write LEARNING_LOG.md — honest, detailed</div>
+                <div class="task-note">Hours per phase · what you got stuck on · what Opencode wrote · how you validated AI code · decisions and trade-offs · what you'd do differently</div>
+              </div>
+            </div>
+            <div class="task inf-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Final security audit before submitting repo</div>
+                <div class="task-note">git log --all -p | grep -i "api_key\|GEMINI" → must show only .env.example references, never a real key</div>
+              </div>
+            </div>
+          </div>
+          <div class="commit-block">
+            <div class="commit-label">final commits</div>
+            <div class="commit">deploy: final build live on render, all tiers working</div>
+            <div class="commit">docs: complete readme and learning log</div>
+          </div>
+        </div>
+      </div>
+      <div class="duration">Time box: <span>1.5 hrs</span></div>
+    </div>
+  </div>
+
+  <!-- BLOCK 11 -->
+  <div class="block">
+    <div class="time-col">
+      <div class="time-str">10:00<br>PM</div>
+      <div class="spine-dot" style="background:var(--done)"></div>
+    </div>
+    <div class="card-col">
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title-wrap">
+            <span class="card-icon">✅</span>
+            <div>
+              <div class="card-title">Block 11 — Final Checklist + Buffer</div>
+              <div class="card-subtitle">2 hrs of buffer for overruns. Use it for fixes, not new features.</div>
+            </div>
+          </div>
+          <span class="card-tier cinf">BUFFER</span>
+        </div>
+        <div class="card-body">
+          <div class="task-list">
+            <div class="task inf-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Review commit history — must have 10+ meaningful commits</div>
+                <div class="task-note">git log --oneline · each commit should tell a story. One-liner "initial commit" with everything is a fail signal to the reviewer.</div>
+              </div>
+            </div>
+            <div class="task inf-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Test public URL on mobile device</div>
+              </div>
+            </div>
+            <div class="task inf-task" onclick="toggleTask(this)">
+              <div class="checkbox"></div>
+              <div class="task-content">
+                <div class="task-text">Send repo link + public URL as your submission</div>
+              </div>
+            </div>
+          </div>
+          <div class="alert good">🏁 Done. Sleep.</div>
+        </div>
+      </div>
+      <div class="duration">Target finish: <span>12 MN or earlier</span></div>
+    </div>
+  </div>
+
+</div><!-- end timeline -->
+
+<!-- SUMMARY / CHECKLIST -->
+<div class="summary">
+  <h2>PRE-SUBMIT CHECKLIST</h2>
+  <div class="checklist">
+    <div class="check-row fail-item" onclick="toggleCheck(this)">
+      <div class="cb"></div>
+      <div class="check-text">
+        <div class="check-main">No API key in git history</div>
+        <div class="check-sub">git log --all -p | grep -i gemini_api_key → only .env.example should appear</div>
+      </div>
+      <span class="fail-tag">AUTO FAIL</span>
+    </div>
+    <div class="check-row fail-item" onclick="toggleCheck(this)">
+      <div class="cb"></div>
+      <div class="check-text">
+        <div class="check-main">Public URL loads and returns answers</div>
+        <div class="check-sub">Test in incognito + different device. Must work cold.</div>
+      </div>
+      <span class="fail-tag">AUTO FAIL</span>
+    </div>
+    <div class="check-row fail-item" onclick="toggleCheck(this)">
+      <div class="cb"></div>
+      <div class="check-text">
+        <div class="check-main">GitHub repo is public</div>
+        <div class="check-sub">Open repo URL in incognito — must be readable without login.</div>
+      </div>
+      <span class="fail-tag">AUTO FAIL</span>
+    </div>
+    <div class="check-row fail-item" onclick="toggleCheck(this)">
+      <div class="cb"></div>
+      <div class="check-text">
+        <div class="check-main">LEARNING_LOG.md exists and is honest</div>
+        <div class="check-sub">Includes: hours per phase, what Opencode wrote, how you validated it, real blockers</div>
+      </div>
+      <span class="fail-tag">AUTO FAIL</span>
+    </div>
+    <div class="check-row" onclick="toggleCheck(this)">
+      <div class="cb"></div>
+      <div class="check-text">
+        <div class="check-main">10+ meaningful commits in git log</div>
+        <div class="check-sub">No single giant commit. History shows how you worked.</div>
+      </div>
+    </div>
+    <div class="check-row" onclick="toggleCheck(this)">
+      <div class="cb"></div>
+      <div class="check-text">
+        <div class="check-main">5 MB client-side validation works without a network request</div>
+        <div class="check-sub">DevTools Network tab must show zero requests when oversized file is selected</div>
+      </div>
+    </div>
+    <div class="check-row" onclick="toggleCheck(this)">
+      <div class="cb"></div>
+      <div class="check-text">
+        <div class="check-main">Agentic timeline is readable to a non-technical person</div>
+        <div class="check-sub">Step types are visually distinct. Think/Code/Output labels are clear.</div>
+      </div>
+    </div>
+    <div class="check-row" onclick="toggleCheck(this)">
+      <div class="cb"></div>
+      <div class="check-text">
+        <div class="check-main">README has real Render deploy steps — not placeholders</div>
+        <div class="check-sub">Document the exact steps you followed on Render. No "your-service-name" stand-ins.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Learning Log reminder -->
+  <div class="log-box">
+    <h3>LEARNING LOG MUST INCLUDE</h3>
+    <div class="log-items">
+      <div class="log-item">Hours per block (honest — don't round up)</div>
+      <div class="log-item">What Opencode generated vs what you wrote manually</div>
+      <div class="log-item">How you validated every piece of AI-generated code before using it</div>
+      <div class="log-item">What you got stuck on and how you got unstuck</div>
+      <div class="log-item">Trade-offs you made (e.g. "skipped streaming to keep T2 solid")</div>
+      <div class="log-item">What you'd do differently or build next with more time</div>
+    </div>
+  </div>
+</div>
+
+</div><!-- end page -->
+
+<script>
+function toggleTask(el){
+  el.classList.toggle('done');
+}
+function toggleCheck(el){
+  el.classList.toggle('checked');
+}
+</script>
+</body>
+</html>
