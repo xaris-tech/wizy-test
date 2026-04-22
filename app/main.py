@@ -20,6 +20,20 @@ from app.middleware import RequestIDMiddleware
 
 load_dotenv()
 
+
+def get_error_message(e: Exception) -> str:
+    """Extract readable error from exception."""
+    error_str = str(e)
+    if "429" in error_str:
+        return "Rate limited (429). Please wait a moment."
+    if "503" in error_str:
+        return "Service unavailable (503). Please try again."
+    if "400" in error_str:
+        return "Bad request (400). Please check your input."
+    if "401" in error_str or "403" in error_str:
+        return "Authentication error. Check your API key."
+    return "Analysis failed. Please try again."
+
 # Support single key or multiple keys (comma-separated)
 single_key = os.getenv("GEMINI_API_KEY", "")
 multi_keys = os.getenv("GEMINI_API_KEYS", "")
@@ -106,7 +120,7 @@ async def analyze(
         return {"answer": answer}
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
-        raise HTTPException(status_code=500, detail="Analysis failed. Please try again.")
+        raise HTTPException(status_code=500, detail=get_error_message(e))
 
 
 @app.post("/api/analyze/agentic")
@@ -130,7 +144,7 @@ async def analyze_agentic(
         return asdict(result)
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
-        raise HTTPException(status_code=500, detail="Analysis failed. Please try again.")
+        raise HTTPException(status_code=500, detail=get_error_message(e))
 
 
 async def generate_agentic_stream(image_data: bytes, question: str, client) -> AsyncGenerator[str, None]:
@@ -158,7 +172,7 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
 
         candidates = data.get("candidates", [])
         if not candidates:
-            yield "data: " + json.dumps({"error": "Analysis failed. Please try again."}) + "\n\n"
+            yield "data: " + json.dumps({"error": get_error_message(e)}) + "\n\n"
             return
 
         content = candidates[0].get("content", {})
@@ -211,7 +225,7 @@ async def analyze_agentic_stream(
             yield "data: " + json.dumps({"type": "done"}) + "\n\n"
         except Exception as e:
             logger.error(f"Streaming error: {e}")
-            yield "data: " + json.dumps({"error": "Analysis failed. Please try again."}) + "\n\n"
+            yield "data: " + json.dumps({"error": get_error_message(e)}) + "\n\n"
 
     return StreamingResponse(
         event_generator(),
@@ -259,7 +273,7 @@ async def followup(
         return {"answer": answer, "session_id": session_id}
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
-        raise HTTPException(status_code=500, detail="Analysis failed. Please try again.")
+        raise HTTPException(status_code=500, detail=get_error_message(e))
 
 
 if __name__ == "__main__":
