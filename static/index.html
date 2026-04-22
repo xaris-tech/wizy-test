@@ -368,6 +368,7 @@
 
     function clearResults() {
       answerDiv.style.display = 'none';
+      answerDiv.textContent = '';
       timeline.style.display = 'none';
       timeline.innerHTML = '';
     }
@@ -446,6 +447,8 @@
       clearResults();
       submitBtn.disabled = true;
       spinner.style.display = 'block';
+      answerDiv.textContent = 'Processing...';
+      answerDiv.style.display = 'block';
 
       const formData = new FormData();
       formData.append('file', file);
@@ -488,8 +491,13 @@
                     break;
                   }
                   if (step.type === 'done') {
+                    spinner.style.display = 'none';
+                    answerDiv.style.display = 'none';
                     continue;
                   }
+                  // First step arrived - hide spinner, hide initial message
+                  spinner.style.display = 'none';
+                  answerDiv.style.display = 'none';
                   // Render each step immediately
                   timeline.appendChild(createStepElement(step));
                   timeline.style.display = 'flex';
@@ -527,6 +535,8 @@ if (!res.ok) {
         }
       } catch (err) {
         showError(err.message || 'An error occurred. Please try again.');
+        answerDiv.style.display = 'none';
+        spinner.style.display = 'none';
       } finally {
         submitBtn.disabled = false;
         spinner.style.display = 'none';
