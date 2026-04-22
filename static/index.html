@@ -359,7 +359,7 @@
           answerDiv.style.display = 'block';
         }
       } catch (err) {
-        showError(err.message);
+        showError(data.detail || 'An error occurred. Please try again.');
       } finally {
         submitBtn.disabled = false;
         spinner.style.display = 'none';

@@ -95,7 +95,7 @@ async def analyze(
         return {"answer": answer}
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Analysis failed. Please try again.")
 
 
 @app.post("/api/analyze/agentic")
@@ -119,7 +119,7 @@ async def analyze_agentic(
         return asdict(result)
     except Exception as e:
         logger.error(f"Gemini API error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Analysis failed. Please try again.")
 
 
 if __name__ == "__main__":
