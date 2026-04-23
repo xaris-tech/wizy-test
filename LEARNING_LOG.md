@@ -1,108 +1,76 @@
 # Learning Log - Gemini Vision Sprint
 
-## What We Built
-AI-powered image analysis web app using Gemini API with FastAPI backend and vanilla HTML/JS frontend.
+## Hours Spent
 
-## Key Decisions & Learnings
+- **Day 1**: 5 hours (9AM - 2AM)
+- **Day 2**: 5 hours (9AM - 2PM)
+- **Total**: ~12 hours
 
-### 1. Tech Stack: FastAPI over Go
-- Chose FastAPI for faster development
-- Python ecosystem easier for Gemini integration
-- Gunicorn with uvicorn worker needed for ASGI
+## What I Got Stuck On & How I Got Unstuck
 
-### 2. Model: gemini-3-flash-preview
-- gemini-2.5-flash had quota issues (503 errors)
-- gemini-3-flash-preview worked
-- code_execution tool enables Agentic Vision
+### Free API Key Limitations
+- Gemini free tier hits quota (429/503) very quickly
+- **Stuck**: Single API key caused frequent failures
+- **Unstuck**: Implemented exponential backoff + key rotation. Multiple keys rotate automatically on rate limit errors
 
-### 3. Multi-Key Rotation
-- Single API key hits quota frequently
-- Implemented automatic failover: `GEMINI_API_KEYS=key1,key2,key3`
-- Rotates on 429/503 errors
+### SSE Integration
+- **Stuck**: Tried to use SSE format with streamGenerateContent, but response was pretty-printed JSON split across lines
+- **Stuck**: Parsing each line as separate JSON failed - buffer had partial objects
+- **Unstuck**: Tracked brace depth ({}) to detect complete JSON objects, skipped empty lines/brackets/commas
+- **Stuck**: UI didn't stream - showed nothing until complete
+- **Unstuck**: Used `httpx.AsyncClient.stream()` for true streaming instead of regular request
 
-### 4. Streaming (SSE)
-- Agentic Vision shows Think → Act → Observe steps
-- Server-Sent Events for real-time step-by-step display
-- 300ms delay makes streaming visible
+## AI Coding Tools Used
 
-### 5. Error Handling
-- Structured error codes: E001, E002, E003, E004
-- {code, message} format prevents API key leaks
-- Full errors logged server-side only
+- **Claude (Anthropic)**: Initial project planning and architecture decisions
+- **ChatGPT (OpenAI)**: Reference for alternative coding styles when Opencode struggled
+- **Opencode (MiniMax 2.5 Free)**: Main coding tool - acted as orchestrator and wrote most of the code
 
-### 6. Session/Multi-turn
-- In-memory session storage
-- Session ID for follow-up questions
-- Cleanup after use
+## How I Validated AI-Generated Code
 
-## Challenges
+- Used Opencode's MCP tools for syntax checking before committing
+- Ran local Python syntax validation (`py_compile`)
+- Checked JS syntax with Node.js parser
+- Tested on Render after push to catch runtime issues
 
-### CORS Issue on Render
-- Gunicorn needed ASGI worker: `gunicorn -k uvicorn.workers.UvicornWorker`
-- Or use uvicorn directly as start command
+## Decisions & Trade-offs
 
-### Static File Path
-- `Path(__file__).parent.parent / "static"` not `Path(__file__).parent / "static"`
-- Had to fix relative path for Render deployment
+| Decision | Trade-off |
+|----------|-----------|
+| FastAPI over Go/Fiber | Faster prototyping, but less performant for high concurrency |
+| Render over Cloud Run | Free tier limitations, but simpler setup |
+| Vanilla HTML/JS | No build step, but less maintainable for complex UI |
+| In-memory sessions | Simple but lost on restart; Redis would be better for production |
 
-### API Rate Limits
-- gemini-3-flash-preview has strict quotas
-- Multiple keys critical for production
-- 503 errors common under load
+**Why FastAPI?** Its my most familiar tool for rapid prototyping. Would try Go + Cloud Run next time.
 
-### File Upload Size
-- Both client (5MB) and server validation
-- FastAPI UploadFile.size not always populated
-- Read content and check len()
+## What I Would Do Differently
 
-## What Worked Well
+1. **Test with ChatGPT's approach** - Got stuck on SSE because I trusted Opencode with just the official docs. Should have asked other AI tools for implementation patterns
+2. **Use Go + Cloud Run** - Industry standard for production, better concurrency
+3. **Add Redis earlier** - In-memory sessions are fine for demo but not production
+4. **Test SSE on multiple AI models** - Each has different streaming behavior
 
-1. **Fast scaffolding** - Opencode + FastAPI quick prototype
-2. **SSE streaming** - Real-time UI updates
-3. **Error codes** - Debug without leaking secrets
-4. **Docker** - Cross-platform deployment
+## Technical Learnings
 
-## What Didn't Work
+### SSE Streaming Evolution
+- **Attempt 1**: `generateContent` - waited for full response, then chunked (fake streaming)
+- **Attempt 2**: `streamGenerateContent` with regular HTTP - still got all data at once
+- **Solution**: `httpx.AsyncClient.stream()` + brace-depth parsing for true streaming
 
-1. **go + Fiber** - Switched to FastAPI mid-sprint
-2. **gemini-2.5-flash** - Quota issues
-3. **gunicorn sync worker** - Needed uvicorn worker for ASGI
-4. **Render static files** - Had to use FileResponse
-
-## Future Improvements
-
-1. **Rate limit handling** - Better retry logic with exponential backoff
-2. **Database sessions** - Redis for production multi-turn
-3. **Image preprocessing** - Resize before sending to Gemini
-4. **Cache responses** - Same image + question
-5. **WebSocket** - Instead of SSE for streaming
-6. **Multi-region** - Deploy to multiple Render regions
-
-## Files Structure
+### Key Files Created/Modified
 
 ```
-├── app/
-│   ├── __init__.py
-│   ├── main.py          # FastAPI app
-│   ├── gemini_client.py # Gemini API client
-│   ├── middleware.py  # Request ID middleware
-│   ├── sessions.py    # Session management
-│   └── errors.py       # Error codes
-├── static/
-│   └── index.html     # Frontend
-├── Dockerfile
-├── requirements.txt
-└── README.md
+app/
+├── main.py          # All endpoints + streaming logic
+├── gemini_client.py # API key rotation
+├── middleware.py    # Request ID extraction
+├── logger.py        # Structured JSON logging 
+├── sessions.py      # Multi-turn sessions 
+static/
+└── index.html       # Frontend with SSE + thinking cards
 ```
 
-## API Endpoints
+## Summary
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/` | GET | Web UI |
-| `/health` | GET | Health check |
-| `/api/analyze` | POST | Standard analysis |
-| `/api/analyze/agentic` | POST | Agentic analysis |
-| `/api/analyze/agentic/stream` | POST | Streaming SSE |
-| `/api/analyze/session` | POST | Create session |
-| `/api/analyze/followup` | POST | Follow-up question |
+Built an AI image analyzer with Gemini API, FastAPI, and vanilla JS. Implemented real-time SSE streaming, multi-turn conversations, structured logging with request_id, and automatic key rotation for rate limits. Main challenge was SSE parsing - required custom JSON extraction from pretty-printed response.

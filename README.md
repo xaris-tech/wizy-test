@@ -4,18 +4,25 @@ AI-powered image analysis web app with Gemini API. Upload an image and ask quest
 
 ## Features
 
-- **Standard Mode**: Simple image Q&A
-- **Agentic Mode**: Code execution - see the model's thinking process with step-by-step timeline
+- **Standard Mode**: Simple image Q&A with single response
+- **Agentic Mode**: Code execution with step-by-step streaming timeline
+  - See Thinking → Code Execution → Output → Observe in real-time
+  - "Gemini is Thinking..." indicator between SSE steps
+  - Final Answer labeled on last thinking step
+- **Multi-turn Conversation**: Continue asking follow-up questions on the same image
+  - Separate sessions for Standard and Agentic modes
+  - Cards accumulate below follow-up form
 - Client-side 5MB validation
 - Server-side validation
 - CORS enabled
+- Structured JSON logging with request_id for full traceability
 
 ## Tech Stack
 
 - **Backend**: FastAPI (Python)
 - **Frontend**: Vanilla HTML/JS
 - **Deployment**: Render (Docker)
-- **AI**: Gemini 3 Flash Preview
+- **AI**: Gemini 3 Flash Preview with Code Execution
 
 ## Quick Start
 
@@ -34,7 +41,8 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # Set API key
-export GEMINI_API_KEY=your_key_here  # On Windows: set GEMINI_API_KEY=your_key_here
+cp .env.example .env
+# Edit .env with your API key
 
 # Run server
 uvicorn app.main:app --host 0.0.0.0 --port 8080
@@ -57,8 +65,12 @@ docker run -p 8080:8080 -e GEMINI_API_KEY=your_key gemini-vision
 | `/health` | GET | Health check |
 | `/api/analyze` | POST | Standard image analysis |
 | `/api/analyze/agentic` | POST | Agentic with code execution |
+| `/api/analyze/agentic/stream` | POST | Agentic with SSE streaming |
+| `/api/analyze/session` | POST | Create session for multi-turn |
+| `/api/analyze/followup` | POST | Standard follow-up question |
+| `/api/analyze/agentic/followup` | POST | Agentic follow-up with streaming |
 
-### Analyze API
+### Analyze API (Standard)
 
 ```bash
 curl -X POST http://localhost:8080/api/analyze \
@@ -71,24 +83,34 @@ Response:
 {"answer": "A red square..."}
 ```
 
-### Agentic API
+### Agentic Stream API
 
 ```bash
-curl -X POST http://localhost:8080/api/analyze/agentic \
+curl -X POST http://localhost:8080/api/analyze/agentic/stream \
   -F "file=@image.jpg" \
-  -F "question=Calculate something with this?"
+  -F "question=Count the items"
 ```
 
-Response:
-```json
-{
-  "answer": "The first 20 prime numbers are...",
-  "steps": [
-    {"type": "code", "content": "def is_prime(n)..."},
-    {"type": "output", "content": "[2, 3, 5, 7...]"},
-    {"type": "think", "content": "Based on the properties..."}
-  ]
-}
+Response (SSE streaming):
+```
+data: {"type": "think", "content": "I'll analyze the image..."}
+data: {"type": "code", "content": "from PIL import Image..."}
+data: {"type": "output", "content": "Found 5 objects"}
+data: {"type": "done"}
+```
+
+### Session Management
+
+```bash
+# Create session (returns session_id)
+curl -X POST http://localhost:8080/api/analyze/session \
+  -F "file=@image.jpg" \
+  -F "agentic=true"
+
+# Follow-up with session_id
+curl -X POST http://localhost:8080/api/analyze/agentic/followup \
+  -d "session_id=abc123" \
+  -d "question=What color is the first object?"
 ```
 
 ## Deployment (Render)
@@ -96,36 +118,36 @@ Response:
 1. Create GitHub repo
 2. Go to [render.com](https://render.com) → New → Web Service
 3. Connect GitHub repo
-4. Add environment variable: `GEMINI_API_KEY`
+4. Add environment variable: `GEMINI_API_KEY` (or `GEMINI_API_KEYS` for multiple)
 5. Build Command: (leave empty - auto-detects Dockerfile)
 6. Start Command: `uvicorn app.main:app --host 0.0.0.0 --port 8080`
 7. Click Create
-
-Or with gunicorn (requires uvicorn in requirements.txt):
-```
-gunicorn -k uvicorn.workers.UvicornWorker -b 0.0.0.0:8080 app.main:app
-```
 
 ## Project Structure
 
 ```
 ├── app/
 │   ├── __init__.py
-│   ├── main.py          # FastAPI app
-│   └── gemini_client.py # Gemini API client
+│   ├── main.py          # FastAPI app with all endpoints
+│   ├── gemini_client.py # Gemini API client with key rotation
+│   ├── middleware.py    # Request ID middleware
+│   ├── logger.py        # Structured JSON logging
+│   └── sessions.py      # In-memory session storage
 ├── static/
-│   └── index.html     # Frontend
+│   └── index.html       # Frontend with SSE streaming
 ├── Dockerfile
 ├── requirements.txt
 ├── .env.example
 └── .gitignore
 ```
 
-## Get API Key
+## Environment Variables
 
-1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
-2. Create API key
-3. Use in local `.env` or Render dashboard
+| Variable | Description |
+|----------|-------------|
+| `GEMINI_API_KEY` | Single API key |
+| `GEMINI_API_KEYS` | Multiple keys (comma-separated) for auto-failover |
+| `PORT` | Server port (default: 8080) |
 
 ### Multiple API Keys (Failover)
 
@@ -137,6 +159,28 @@ GEMINI_API_KEYS=key1,key2,key3
 ```
 
 When one key hits quota (429/503), the system automatically rotates to the next key.
+
+## Get API Key
+
+1. Go to [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. Create API key
+3. Use in local `.env` or Render dashboard
+
+## Structured Logging
+
+All logs are JSON-formatted with request_id for full traceability:
+
+```json
+{
+  "timestamp": "2026-04-23T05:21:10.215694Z",
+  "level": "INFO",
+  "request_id": "49d37c69-af3",
+  "message": "Agentic stream request started",
+  "module": "stream"
+}
+```
+
+Pass `X-Request-ID` header to use custom request ID, or one will be generated automatically.
 
 ## License
 
