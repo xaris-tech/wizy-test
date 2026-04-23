@@ -132,51 +132,71 @@
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    .timeline {
+.timeline {
       margin-top: 16px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 8px;
     }
-.step {
-      padding: 12px 16px;
-      border-radius: 8px;
-      border-left: 4px solid;
+    .step {
+      padding: 10px 14px;
+      border-radius: 6px;
+      border-left: 3px solid;
       animation: fadeSlideIn 0.4s ease forwards;
+      opacity: 0;
     }
     @keyframes fadeSlideIn {
       from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(12px);
       }
       to {
         opacity: 1;
         transform: translateY(0);
       }
     }
+    .step-header {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .step-content {
+      font-size: 13px;
+      line-height: 1.5;
+      white-space: pre-wrap;
+    }
     .step-think {
-      background: #e3f2fd;
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
       border-color: #2196F3;
     }
     .step-think .step-header { color: #1565C0; }
     .step-code {
-      background: #263238;
+      background: linear-gradient(135deg, #263238 0%, #37474f 100%);
       border-color: #ff9800;
       color: #fff;
     }
     .step-code .step-header { color: #ffb74d; }
     .step-code .step-content {
-      background: rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.08);
       color: #a5d6a7;
+      border-radius: 4px;
+      padding: 8px;
+      font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+      font-size: 12px;
     }
     .step-output {
-      background: #e8f5e9;
+      background: linear-gradient(135deg, #e8f5e9 0%, #c8e6c9 100%);
       border-color: #4CAF50;
     }
     .step-output .step-header { color: #2e7d32; }
     .step-output .step-content { color: #1b5e20; }
     .step-observe {
-      background: #f3e5f5;
+      background: linear-gradient(135deg, #f3e5f5 0%, #e1bee7 100%);
       border-color: #9c27b0;
     }
     .step-observe .step-header { color: #7b1fa2; }
@@ -186,23 +206,31 @@
     }
     .step-observe img {
       max-width: 100%;
+      max-height: 200px;
       border-radius: 4px;
       margin-top: 8px;
       border: 2px solid #9c27b0;
+      object-fit: contain;
     }
     .final-answer {
-      background: #fff3e0;
+      background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
       border: 2px solid #ff9800;
       border-radius: 8px;
       padding: 16px;
-      margin-top: 16px;
+      margin-top: 12px;
+      animation: fadeSlideIn 0.4s ease forwards;
     }
     .final-answer h3 {
       color: #e65100;
       margin-bottom: 8px;
-      font-size: 14px;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
     }
-    .final-answer p { white-space: pre-wrap; line-height: 1.6; }
+    .final-answer p { white-space: pre-wrap; line-height: 1.6; font-size: 14px; }
     .preset-btns {
       display: flex;
       gap: 8px;
@@ -370,6 +398,7 @@
       steps.forEach((step, i) => {
         const stepDiv = document.createElement('div');
         stepDiv.className = `step step-${step.type}`;
+        stepDiv.style.animationDelay = `${i * 0.15}s`;
         const icons = { think: '🤔', code: '🐍', output: '📊', observe: '🔍' };
         const labels = { think: 'Thinking', code: 'Code Execution', output: 'Output', observe: 'Observe' };
         let contentHtml = escapeHtml(step.content);
@@ -389,7 +418,7 @@
       if (finalAnswer) {
         const answerDiv2 = document.createElement('div');
         answerDiv2.className = 'final-answer';
-        answerDiv2.innerHTML = `<h3>Final Answer</h3><p>${finalAnswer}</p>`;
+        answerDiv2.innerHTML = `<h3>✨ Final Answer</h3><p>${finalAnswer}</p>`;
         timeline.appendChild(answerDiv2);
       }
       timeline.style.display = 'flex';
@@ -401,9 +430,10 @@
       return div.innerHTML;
     }
 
-    function createStepElement(step) {
+    function createStepElement(step, index) {
       const stepDiv = document.createElement('div');
       stepDiv.className = `step step-${step.type}`;
+      stepDiv.style.animationDelay = `${index * 0.15}s`;
       const icons = { think: '🤔', code: '🐍', output: '📊', observe: '🔍' };
       const labels = { think: 'Thinking', code: 'Code Execution', output: 'Output', observe: 'Observe' };
       let contentHtml = escapeHtml(step.content || '');
@@ -463,6 +493,7 @@
           const reader = res.body.getReader();
           const decoder = new TextDecoder();
           let buffer = '';
+          let stepIndex = 0;
           
           while (true) {
             const { done, value } = await reader.read();
@@ -490,19 +521,10 @@
                   // First step arrived - hide spinner, hide initial message
                   spinner.style.display = 'none';
                   answerDiv.style.display = 'none';
-                  // Render each step immediately with animation
-                  const stepEl = createStepElement(step);
-                  stepEl.style.opacity = '0';
-                  stepEl.style.transform = 'translateY(10px)';
-                  stepEl.style.transition = 'all 0.3s ease';
+                  // Render each step immediately with staggered animation
+                  const stepEl = createStepElement(step, stepIndex++);
                   timeline.appendChild(stepEl);
                   timeline.style.display = 'flex';
-                  
-                  // Animate in
-                  requestAnimationFrame(() => {
-                    stepEl.style.opacity = '1';
-                    stepEl.style.transform = 'translateY(0)';
-                  });
                   // Scroll to bottom
                   timeline.scrollTop = timeline.scrollHeight;
                 } catch (e) {}
