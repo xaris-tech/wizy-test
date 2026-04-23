@@ -2,6 +2,7 @@ import os
 import base64
 import httpx
 import logging
+import time
 from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, asdict
 
@@ -28,6 +29,8 @@ class GeminiAPI:
     def __init__(self, api_keys: List[str]):
         self.api_keys = api_keys
         self.current_key_index = 0
+        self.retry_count = 0
+        self.max_retries = 3
 
     @property
     def current_key(self) -> str:
@@ -39,6 +42,7 @@ class GeminiAPI:
 
     def rotate_key(self):
         self.current_key_index = (self.current_key_index + 1) % len(self.api_keys)
+        self.retry_count = 0
         logger.info(f"Rotated to API key #{self.current_key_index + 1}")
 
     def is_quota_error(self, response) -> bool:
@@ -55,9 +59,9 @@ class GeminiAPI:
         return False
 
     def _call_api(self, payload: Dict, timeout: float = 60.0) -> Dict:
-        """Make API call with key rotation on quota errors."""
+        """Make API call with exponential backoff on quota errors."""
         last_error = None
-        max_retries = len(self.api_keys)
+        max_retries = len(self.api_keys) * self.max_retries
 
         for attempt in range(max_retries):
             try:
@@ -65,24 +69,38 @@ class GeminiAPI:
                     response = client.post(self.current_url, json=payload)
 
                     if self.is_quota_error(response):
-                        logger.warning(f"Quota error with key #{self.current_key_index + 1}, rotating...")
-                        self.rotate_key()
+                        # Calculate exponential backoff: 1s, 2s, 4s, 8s...
+                        wait_time = 2 ** self.retry_count
+                        logger.warning(f"Quota error. Waiting {wait_time}s before retry...")
+                        time.sleep(wait_time)
+                        self.retry_count += 1
+                        
+                        if self.retry_count >= self.max_retries:
+                            logger.warning(f"Max retries reached for key #{self.current_key_index + 1}, rotating...")
+                            self.rotate_key()
                         continue
 
                     response.raise_for_status()
+                    self.retry_count = 0
                     return response.json()
 
             except httpx.HTTPStatusError as e:
-                if attempt < max_retries - 1 and "503" in str(e):
-                    logger.warning(f"Service unavailable with key #{self.current_key_index + 1}, rotating...")
-                    self.rotate_key()
+                if "429" in str(e) or "503" in str(e):
+                    wait_time = 2 ** self.retry_count
+                    logger.warning(f"Rate limit ({e.response.status_code}). Waiting {wait_time}s...")
+                    time.sleep(wait_time)
+                    self.retry_count += 1
+                    
+                    if self.retry_count >= self.max_retries:
+                        logger.warning(f"Max retries for key #{self.current_key_index + 1}, rotating...")
+                        self.rotate_key()
                     continue
                 raise
             except Exception as e:
                 last_error = e
                 break
 
-        raise Exception(f"All {len(self.api_keys)} API keys exhausted. Last error: {last_error}")
+        raise Exception(f"All {len(self.api_keys)} API keys exhausted after {max_retries} attempts.")
 
     def analyze(self, image_data: bytes, question: str) -> str:
         """Analyze an image with a question."""
