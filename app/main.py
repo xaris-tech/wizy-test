@@ -150,14 +150,13 @@ async def analyze_agentic(
 
 
 async def generate_agentic_stream(image_data: bytes, question: str, client) -> AsyncGenerator[str, None]:
-    """Stream agentic steps as they're generated using SSE."""
-    image_b64 = base64.b64encode(image_data).decode("utf-8")
-
-    # For streaming, we'd need to use the streaming API
-    # For now, let's use a simpler approach: stream partial results
-    # The model generates all at once, but we can chunk the response
+    """Stream agentic steps as they're generated using Gemini's streaming API."""
+    from app.gemini_client import GEMINI_API_STREAM_URL
     
+    image_b64 = base64.b64encode(image_data).decode("utf-8")
     import time
+    
+    stream_url = f"{GEMINI_API_STREAM_URL}?key={client.current_key}"
     
     payload = {
         "contents": [{
@@ -171,15 +170,14 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
             "parts": [{"text": "Use code execution to analyze images. Show your thinking by writing and running Python code to inspect the image."}]
         }
     }
-
-    # Use proper retry logic like other methods
+    
     retry_count = 0
     max_retries = 3
     
     while retry_count <= max_retries:
         try:
             with httpx.Client(timeout=120.0) as hpClient:
-                response = hpClient.post(client.current_url, json=payload)
+                response = hpClient.post(stream_url, json=payload)
                 
                 if response.status_code in (429, 503):
                     if retry_count < max_retries:
@@ -191,6 +189,7 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
                     else:
                         logger.warning(f"Max retries for key #{client.current_key_index + 1}, rotating...")
                         client.rotate_key()
+                        stream_url = f"{GEMINI_API_STREAM_URL}?key={client.current_key}"
                         retry_count = 0
                         continue
                 
@@ -207,40 +206,44 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
             yield "data: " + json.dumps({"error": get_error_message(e)}) + "\n\n"
             return
 
-    data = response.json()
-
-    candidates = data.get("candidates", [])
-    if not candidates:
-        yield "data: " + json.dumps({"error": get_error_message(e)}) + "\n\n"
-        return
-
-    content = candidates[0].get("content", {})
-    parts = content.get("parts", [])
-
+    # Parse streaming response - it's multiple JSON objects separated by newlines
+    response_text = response.text
     final_answer = ""
-    for part in parts:
-        step = {}
-        if "executableCode" in part:
-            step = {"type": "code", "content": part["executableCode"].get("code", ""), "language": "python"}
-        elif "codeExecutionResult" in part:
-            result = part["codeExecutionResult"]
-            step = {"type": "output", "content": result.get("output", ""), "outcome": result.get("outcome", "")}
-            if "inlineData" in result:
-                step["image_data"] = result["inlineData"].get("data", "")
-                step["image_mime_type"] = result["inlineData"].get("mimeType", "image/png")
-        elif "inlineData" in part:
-            step = {"type": "observe", "content": "Intermediate image", "image_data": part["inlineData"].get("data", ""), "image_mime_type": part["inlineData"].get("mimeType", "image/png")}
-        elif "text" in part and part.get("text"):
-            step = {"type": "think", "content": part.get("text", "")}
-            final_answer = part.get("text", "")
+    
+    for line in response_text.strip().split('\n'):
+        if not line.strip():
+            continue
+        try:
+            data = json.loads(line)
+        except:
+            continue
+            
+        candidates = data.get("candidates", [])
+        if not candidates:
+            continue
+            
+        content = candidates[0].get("content", {})
+        parts = content.get("parts", [])
+        
+        for part in parts:
+            step = {}
+            if "executableCode" in part:
+                step = {"type": "code", "content": part["executableCode"].get("code", ""), "language": "python"}
+            elif "codeExecutionResult" in part:
+                result = part["codeExecutionResult"]
+                step = {"type": "output", "content": result.get("output", ""), "outcome": result.get("outcome", "")}
+                if "inlineData" in result:
+                    step["image_data"] = result["inlineData"].get("data", "")
+                    step["image_mime_type"] = result["inlineData"].get("mimeType", "image/png")
+            elif "inlineData" in part:
+                step = {"type": "observe", "content": "Intermediate image", "image_data": part["inlineData"].get("data", ""), "image_mime_type": part["inlineData"].get("mimeType", "image/png")}
+            elif "text" in part and part.get("text"):
+                step = {"type": "think", "content": part.get("text", "")}
+                final_answer = part.get("text", "")
 
-        if step:
-            yield "data: " + json.dumps(step) + "\n\n"
-            await asyncio.sleep(0.3)
-
-    # After all steps, yield final answer separately
-    if final_answer:
-        yield "data: " + json.dumps({"type": "final_answer", "content": final_answer}) + "\n\n"
+            if step:
+                yield "data: " + json.dumps(step) + "\n\n"
+                await asyncio.sleep(0.3)
 
 
 @app.post("/api/analyze/agentic/stream")

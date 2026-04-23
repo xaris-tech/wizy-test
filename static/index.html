@@ -403,7 +403,6 @@
         const labels = { think: 'Thinking', code: 'Code Execution', output: 'Output', observe: 'Observe' };
         let contentHtml = escapeHtml(step.content);
         
-        // Handle observe steps with intermediate images
         if (step.type === 'observe' && step.image_data) {
           const mimeType = step.image_mime_type || 'image/png';
           contentHtml = `<img src="data:${mimeType};base64,${step.image_data}" alt="Intermediate result">`;
@@ -415,12 +414,6 @@
         `;
         timeline.appendChild(stepDiv);
       });
-      if (finalAnswer) {
-        const answerDiv2 = document.createElement('div');
-        answerDiv2.className = 'final-answer';
-        answerDiv2.innerHTML = `<h3>✨ Final Answer</h3><p>${finalAnswer}</p>`;
-        timeline.appendChild(answerDiv2);
-      }
       timeline.style.display = 'flex';
     }
 
@@ -516,16 +509,6 @@
                   if (step.type === 'done') {
                     spinner.style.display = 'none';
                     answerDiv.style.display = 'none';
-                    continue;
-                  }
-                  if (step.type === 'final_answer') {
-                    // Render final answer at the end
-                    const answerDiv2 = document.createElement('div');
-                    answerDiv2.className = 'final-answer';
-                    answerDiv2.innerHTML = `<h3>✨ Final Answer</h3><p>${escapeHtml(step.content)}</p>`;
-                    answerDiv2.style.animationDelay = `${stepIndex * 0.15}s`;
-                    timeline.appendChild(answerDiv2);
-                    timeline.scrollTop = timeline.scrollHeight;
                     continue;
                   }
                   // First step arrived - hide spinner, hide initial message
