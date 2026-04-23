@@ -50,6 +50,7 @@
 2. **Use Go + Cloud Run** - Industry standard for production, better concurrency
 3. **Add Redis earlier** - In-memory sessions are fine for demo but not production
 4. **Test SSE on multiple AI models** - Each has different streaming behavior
+5. **Fix the UI** - Make it user friendly and comprehendable
 
 ## Technical Learnings
 
