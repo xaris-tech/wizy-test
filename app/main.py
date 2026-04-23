@@ -226,6 +226,7 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
     logger.info(f"Found {len(json_objects)} JSON objects")
     
     final_answer = ""
+    buffered_think = ""
     
     for i, json_str in enumerate(json_objects):
         try:
@@ -246,6 +247,11 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
         for part in parts:
             step = {}
             if "executableCode" in part:
+                # Flush buffered think before code
+                if buffered_think:
+                    yield "data: " + json.dumps({"type": "think", "content": buffered_think}) + "\n\n"
+                    await asyncio.sleep(0.3)
+                    buffered_think = ""
                 step = {"type": "code", "content": part["executableCode"].get("code", ""), "language": "python"}
             elif "codeExecutionResult" in part:
                 result = part["codeExecutionResult"]
@@ -256,13 +262,19 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
             elif "inlineData" in part:
                 step = {"type": "observe", "content": "Intermediate image", "image_data": part["inlineData"].get("data", ""), "image_mime_type": part["inlineData"].get("mimeType", "image/png")}
             elif "text" in part and part.get("text"):
-                step = {"type": "think", "content": part.get("text", "")}
+                # Buffer think text instead of yielding immediately
+                buffered_think += part.get("text", "")
                 final_answer = part.get("text", "")
 
             if step:
                 logger.info(f"  Yielding step {step['type']}")
                 yield "data: " + json.dumps(step) + "\n\n"
                 await asyncio.sleep(0.3)
+    
+    # Flush any remaining think at the end
+    if buffered_think:
+        yield "data: " + json.dumps({"type": "think", "content": buffered_think}) + "\n\n"
+        await asyncio.sleep(0.3)
     
     logger.info(f"Final answer: {final_answer[:50] if final_answer else 'none'}")
 
