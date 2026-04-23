@@ -179,6 +179,8 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
             with httpx.Client(timeout=120.0) as hpClient:
                 response = hpClient.post(stream_url, json=payload)
                 
+                logger.info(f"Stream response status: {response.status_code}")
+                
                 if response.status_code in (429, 503):
                     if retry_count < max_retries:
                         wait_time = 2 ** retry_count
@@ -208,16 +210,23 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
 
     # Parse streaming response - it's multiple JSON objects separated by newlines
     response_text = response.text
+    logger.info(f"Stream response length: {len(response_text)}")
+    
     final_answer = ""
+    line_count = 0
     
     for line in response_text.strip().split('\n'):
         if not line.strip():
             continue
+        line_count += 1
         try:
             data = json.loads(line)
         except:
+            logger.warning(f"Failed to parse line: {line[:100]}")
             continue
             
+        logger.info(f"Line {line_count}: {list(data.keys())}")
+        
         candidates = data.get("candidates", [])
         if not candidates:
             continue
@@ -225,7 +234,9 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
         content = candidates[0].get("content", {})
         parts = content.get("parts", [])
         
+        step_count = 0
         for part in parts:
+            step_count += 1
             step = {}
             if "executableCode" in part:
                 step = {"type": "code", "content": part["executableCode"].get("code", ""), "language": "python"}
@@ -242,8 +253,11 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
                 final_answer = part.get("text", "")
 
             if step:
+                logger.info(f"  Yielding step {step['type']}")
                 yield "data: " + json.dumps(step) + "\n\n"
                 await asyncio.sleep(0.3)
+    
+    logger.info(f"Total lines: {line_count}, final_answer: {final_answer[:50] if final_answer else 'none'}")
 
 
 @app.post("/api/analyze/agentic/stream")
