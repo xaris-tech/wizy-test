@@ -8,6 +8,7 @@ from dataclasses import dataclass, asdict
 
 
 GEMINI_API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent"
+GEMINI_API_STREAM_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:streamGenerateContent"
 
 logger = logging.getLogger(__name__)
 
