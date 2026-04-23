@@ -214,12 +214,12 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
         yield "data: " + json.dumps({"error": get_error_message(e)}) + "\n\n"
         return
 
-content = candidates[0].get("content", {})
-        parts = content.get("parts", [])
-        
-        logger.info(f"Got {len(parts)} parts in response")
-        for i, p in enumerate(parts):
-            logger.info(f"  Part {i}: {list(p.keys())}")
+    content = candidates[0].get("content", {})
+    parts = content.get("parts", [])
+    
+    logger.info(f"Got {len(parts)} parts in response")
+    for i, p in enumerate(parts):
+        logger.info(f"  Part {i}: {list(p.keys())}")
 
     for i, part in enumerate(parts):
         step = {}
