@@ -238,18 +238,16 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
             logger.warning(f"Failed to parse object {i}")
             continue
             
-        logger.info(f"Object {i}: {list(data.keys())}")
+logger.info(f"Object {i}: {list(data.keys())}")
         
         candidates = data.get("candidates", [])
         if not candidates:
             continue
             
         content = candidates[0].get("content", {})
-parts = content.get("parts", [])
+        parts = content.get("parts", [])
         
-        step_count = 0
         for part in parts:
-            step_count += 1
             step = {}
             if "executableCode" in part:
                 step = {"type": "code", "content": part["executableCode"].get("code", ""), "language": "python"}
@@ -267,7 +265,7 @@ parts = content.get("parts", [])
 
             if step:
                 logger.info(f"  Yielding step {step['type']}")
-yield "data: " + json.dumps(step) + "\n\n"
+                yield "data: " + json.dumps(step) + "\n\n"
                 await asyncio.sleep(0.3)
     
     logger.info(f"Final answer: {final_answer[:50] if final_answer else 'none'}")
