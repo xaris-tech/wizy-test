@@ -208,7 +208,7 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
                         
                         async for line in response.aiter_lines():
                             line_count += 1
-                            if not line:
+                            if not line or line == '[' or line == ']':
                                 continue
                             
                             json_buffer += line + "\n"
