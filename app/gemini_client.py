@@ -61,22 +61,22 @@ class GeminiAPI:
     def _call_api(self, payload: Dict, timeout: float = 60.0) -> Dict:
         """Make API call with exponential backoff on quota errors."""
         last_error = None
-        max_retries = len(self.api_keys) * self.max_retries
-
-        for attempt in range(max_retries):
+        
+        # Try each key up to max_retries times
+        while self.current_key_index < len(self.api_keys):
             try:
                 with httpx.Client(timeout=timeout) as client:
                     response = client.post(self.current_url, json=payload)
 
                     if self.is_quota_error(response):
-                        # Calculate exponential backoff: 1s, 2s, 4s, 8s...
+                        # Calculate exponential backoff: 1s, 2s, 4s...
                         wait_time = 2 ** self.retry_count
-                        logger.warning(f"Quota error. Waiting {wait_time}s before retry...")
+                        logger.warning(f"Quota error on key #{self.current_key_index + 1}. Waiting {wait_time}s before retry...")
                         time.sleep(wait_time)
                         self.retry_count += 1
                         
                         if self.retry_count >= self.max_retries:
-                            logger.warning(f"Max retries reached for key #{self.current_key_index + 1}, rotating...")
+                            logger.warning(f"Max retries ({self.max_retries}) reached for key #{self.current_key_index + 1}, rotating...")
                             self.rotate_key()
                         continue
 
@@ -87,7 +87,7 @@ class GeminiAPI:
             except httpx.HTTPStatusError as e:
                 if "429" in str(e) or "503" in str(e):
                     wait_time = 2 ** self.retry_count
-                    logger.warning(f"Rate limit ({e.response.status_code}). Waiting {wait_time}s...")
+                    logger.warning(f"Rate limit on key #{self.current_key_index + 1}. Waiting {wait_time}s...")
                     time.sleep(wait_time)
                     self.retry_count += 1
                     
@@ -100,7 +100,7 @@ class GeminiAPI:
                 last_error = e
                 break
 
-        raise Exception(f"All {len(self.api_keys)} API keys exhausted after {max_retries} attempts.")
+        raise Exception(f"All {len(self.api_keys)} API keys exhausted after {self.max_retries} retries each.")
 
     def analyze(self, image_data: bytes, question: str) -> str:
         """Analyze an image with a question."""
