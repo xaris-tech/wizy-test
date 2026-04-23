@@ -1,32 +1,42 @@
 import uuid
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 import asyncio
 
 
 # In-memory session storage
-# {session_id: {"image_data": bytes, "created_at": timestamp}}
+# {session_id: {"image_data": bytes, "history": List[dict], "created_at": timestamp}}
 _sessions: Dict[str, Dict] = {}
 _session_lock = asyncio.Lock()
 
 
-async def create_session(image_data: bytes) -> str:
+async def create_session(image_data: bytes, use_agentic: bool = False) -> str:
     """Create a new session with image data."""
     session_id = str(uuid.uuid4())[:12]
     async with _session_lock:
         _sessions[session_id] = {
             "image_data": image_data,
+            "history": [],
+            "use_agentic": use_agentic,
             "created_at": asyncio.get_event_loop().time()
         }
     return session_id
 
 
-async def get_session(session_id: str) -> Optional[bytes]:
-    """Get image data for a session."""
+async def get_session(session_id: str) -> Optional[Dict]:
+    """Get session data for a session."""
     async with _session_lock:
         session = _sessions.get(session_id)
         if session:
-            return session["image_data"]
+            return session
         return None
+
+
+async def add_to_history(session_id: str, role: str, content: str):
+    """Add a message to session history."""
+    async with _session_lock:
+        session = _sessions.get(session_id)
+        if session:
+            session["history"].append({"role": role, "content": content})
 
 
 async def delete_session(session_id: str):
