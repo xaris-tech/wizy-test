@@ -518,6 +518,16 @@
                     answerDiv.style.display = 'none';
                     continue;
                   }
+                  if (step.type === 'final_answer') {
+                    // Render final answer at the end
+                    const answerDiv2 = document.createElement('div');
+                    answerDiv2.className = 'final-answer';
+                    answerDiv2.innerHTML = `<h3>✨ Final Answer</h3><p>${escapeHtml(step.content)}</p>`;
+                    answerDiv2.style.animationDelay = `${stepIndex * 0.15}s`;
+                    timeline.appendChild(answerDiv2);
+                    timeline.scrollTop = timeline.scrollHeight;
+                    continue;
+                  }
                   // First step arrived - hide spinner, hide initial message
                   spinner.style.display = 'none';
                   answerDiv.style.display = 'none';

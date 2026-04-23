@@ -217,7 +217,8 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
     content = candidates[0].get("content", {})
     parts = content.get("parts", [])
 
-    for i, part in enumerate(parts):
+    final_answer = ""
+    for part in parts:
         step = {}
         if "executableCode" in part:
             step = {"type": "code", "content": part["executableCode"].get("code", ""), "language": "python"}
@@ -231,10 +232,15 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
             step = {"type": "observe", "content": "Intermediate image", "image_data": part["inlineData"].get("data", ""), "image_mime_type": part["inlineData"].get("mimeType", "image/png")}
         elif "text" in part and part.get("text"):
             step = {"type": "think", "content": part.get("text", "")}
+            final_answer = part.get("text", "")
 
         if step:
             yield "data: " + json.dumps(step) + "\n\n"
             await asyncio.sleep(0.3)
+
+    # After all steps, yield final answer separately
+    if final_answer:
+        yield "data: " + json.dumps({"type": "final_answer", "content": final_answer}) + "\n\n"
 
 
 @app.post("/api/analyze/agentic/stream")
