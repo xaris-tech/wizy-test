@@ -181,12 +181,15 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
                 if response.status_code in (429, 503):
                     if retry_count < max_retries:
                         wait_time = 2 ** retry_count
-                        logger.warning(f"Rate limit (429/503). Waiting {wait_time}s...")
+                        logger.warning(f"Rate limit (429/503) on key #{client.current_key_index + 1}. Waiting {wait_time}s...")
                         time.sleep(wait_time)
                         retry_count += 1
                         continue
                     else:
-                        raise Exception("Max retries reached")
+                        logger.warning(f"Max retries for key #{client.current_key_index + 1}, rotating...")
+                        client.rotate_key()
+                        retry_count = 0
+                        continue
                 
                 response.raise_for_status()
                 break
