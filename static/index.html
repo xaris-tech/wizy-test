@@ -341,6 +341,7 @@
       </div>
     </div>
     <div class="answer" id="answer" style="display: none;"></div>
+    <div class="timeline" id="timeline" style="display: none;"></div>
     
     <div class="session-area" id="sessionArea" style="display: none;">
       <h4>Continue this conversation?</h4>
@@ -350,8 +351,6 @@
         <button class="btn" onclick="startNew()" style="background: #666;">New Image</button>
       </div>
     </div>
-
-    <div class="timeline" id="timeline" style="display: none;"></div>
   </div>
 
   <script>
@@ -652,6 +651,14 @@ async function analyze() {
       fileInput.value = '';
       uploadArea.classList.remove('has-file');
       question.value = '';
+      
+      // Move timeline back to original position
+      const timeline = document.getElementById('timeline');
+      const container = document.querySelector('.container');
+      const sessionArea = document.getElementById('sessionArea');
+      if (timeline && container && sessionArea) {
+        container.insertBefore(timeline, sessionArea);
+      }
     }
 
     async function handleFollowup() {
@@ -661,6 +668,14 @@ async function analyze() {
 
       hideError();
       followupBtn.disabled = true;
+      followup.value = '';
+      
+      // Move timeline inside sessionArea for follow-up responses
+      const existingTimeline = document.getElementById('timeline');
+      const sessionArea = document.getElementById('sessionArea');
+      if (existingTimeline && sessionArea && !sessionArea.contains(existingTimeline)) {
+        sessionArea.appendChild(existingTimeline);
+      }
 
       try {
         // Use agentic followup endpoint for agentic mode, regular for standard
@@ -685,6 +700,7 @@ async function analyze() {
           const decoder = new TextDecoder();
           let buffer = '';
           let stepIndex = 0;
+          let thinkSteps = [];
           
           while (true) {
             const { done, value } = await reader.read();
@@ -705,9 +721,21 @@ async function analyze() {
                   }
                   if (step.type === 'done') {
                     thinkingCard.style.display = 'none';
+                    // Convert all think steps except last to "Thinking"
+                    const allSteps = timeline.querySelectorAll('.step');
+                    thinkSteps.forEach((idx, i) => {
+                      if (i < thinkSteps.length - 1 && allSteps[idx]) {
+                        allSteps[idx].className = 'step step-think';
+                        allSteps[idx].querySelector('.step-header').innerHTML = '🤔 Thinking';
+                      }
+                    });
                     continue;
                   }
-                  const stepEl = createStepElement(step, stepIndex++);
+                  // Track think steps
+                  if (step.type === 'think') {
+                    thinkSteps.push(stepIndex);
+                  }
+                  const stepEl = createStepElement(step, stepIndex++, step.type === 'think');
                   timeline.appendChild(stepEl);
                   timeline.style.display = 'flex';
                   
