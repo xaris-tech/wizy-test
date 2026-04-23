@@ -423,12 +423,19 @@
       return div.innerHTML;
     }
 
-    function createStepElement(step, index) {
+    function createStepElement(step, index, isLastThink = false) {
       const stepDiv = document.createElement('div');
       stepDiv.className = `step step-${step.type}`;
       stepDiv.style.animationDelay = `${index * 0.15}s`;
       const icons = { think: '🤔', code: '🐍', output: '📊', observe: '🔍' };
       const labels = { think: 'Thinking', code: 'Code Execution', output: 'Output', observe: 'Observe' };
+      
+      // Override for final answer
+      if (isLastThink) {
+        icons.think = '✨';
+        labels.think = 'Final Answer';
+      }
+      
       let contentHtml = escapeHtml(step.content || '');
       
       if (step.type === 'observe' && step.image_data) {
@@ -483,7 +490,7 @@ async function analyze() {
             throw new Error(err.message);
           }
           
-          // Create session for agentic follow-up
+          // Create session for agentic follow-up (hidden until stream completes)
           const sessionFormData = new FormData();
           sessionFormData.append('file', file);
           sessionFormData.append('agentic', 'true');
@@ -491,16 +498,18 @@ async function analyze() {
             method: 'POST',
             body: sessionFormData
           });
+          let sessionCreated = false;
           if (sessionRes.ok) {
             const sessionData = await sessionRes.json();
             currentSessionId = sessionData.session_id;
-            sessionArea.style.display = 'block';
+            sessionCreated = true;
           }
           
           const reader = res.body.getReader();
           const decoder = new TextDecoder();
           let buffer = '';
           let stepIndex = 0;
+          let thinkSteps = [];
           
           while (true) {
             const { done, value } = await reader.read();
@@ -523,13 +532,31 @@ async function analyze() {
                   if (step.type === 'done') {
                     spinner.style.display = 'none';
                     answerDiv.style.display = 'none';
+                    // Show follow-up UI only after stream is complete
+                    if (sessionCreated) {
+                      sessionArea.style.display = 'block';
+                    }
+                    // Convert all think steps except last to "Thinking"
+                    const allSteps = timeline.querySelectorAll('.step');
+                    thinkSteps.forEach((idx, i) => {
+                      if (i < thinkSteps.length - 1 && allSteps[idx]) {
+                        allSteps[idx].className = 'step step-think';
+                        allSteps[idx].querySelector('.step-header').innerHTML = '🤔 Thinking';
+                      }
+                    });
                     continue;
                   }
                   // First step arrived - hide spinner, hide initial message
                   spinner.style.display = 'none';
                   answerDiv.style.display = 'none';
-                  // Render each step immediately with staggered animation
-                  const stepEl = createStepElement(step, stepIndex++);
+                  
+                  // Collect think steps
+                  if (step.type === 'think') {
+                    thinkSteps.push(stepIndex);
+                  }
+                  
+                  const isLastThink = step.type === 'think';
+                  const stepEl = createStepElement(step, stepIndex++, isLastThink);
                   timeline.appendChild(stepEl);
                   timeline.style.display = 'flex';
                   // Scroll to bottom
