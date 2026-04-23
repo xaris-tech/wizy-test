@@ -687,13 +687,6 @@ async function analyze() {
         // Show thinking card while waiting
         thinkingCard.style.display = 'block';
         
-        // Move timeline inside sessionArea for follow-up responses
-        const existingTimeline = document.getElementById('timeline');
-        const sessionArea = document.getElementById('sessionArea');
-        if (existingTimeline && sessionArea && !sessionArea.contains(existingTimeline)) {
-          sessionArea.appendChild(existingTimeline);
-        }
-        
         // If agentic mode, use streaming
         if (currentMode === 'agentic') {
           const reader = res.body.getReader();
@@ -721,6 +714,14 @@ async function analyze() {
                   }
                   if (step.type === 'done') {
                     thinkingCard.style.display = 'none';
+                    
+                    // Move timeline inside sessionArea (below the form) after streaming completes
+                    const timeline = document.getElementById('timeline');
+                    const sessionArea = document.getElementById('sessionArea');
+                    if (timeline && sessionArea && !sessionArea.contains(timeline)) {
+                      sessionArea.appendChild(timeline);
+                    }
+                    
                     // Convert all think steps except last to "Thinking"
                     const allSteps = timeline.querySelectorAll('.step');
                     thinkSteps.forEach((idx, i) => {
