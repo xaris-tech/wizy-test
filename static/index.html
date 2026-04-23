@@ -341,7 +341,6 @@
       </div>
     </div>
     <div class="answer" id="answer" style="display: none;"></div>
-    <div class="timeline" id="timeline" style="display: none;"></div>
     
     <div class="session-area" id="sessionArea" style="display: none;">
       <h4>Continue this conversation?</h4>
@@ -351,6 +350,8 @@
         <button class="btn" onclick="startNew()" style="background: #666;">New Image</button>
       </div>
     </div>
+
+    <div class="timeline" id="timeline" style="display: none;"></div>
   </div>
 
   <script>
@@ -503,11 +504,7 @@ async function analyze() {
       hideError();
       clearResults();
       submitBtn.disabled = true;
-      spinner.style.display = 'block';
-      thinkingCard.style.display = 'block';
-      answerDiv.textContent = 'Processing...';
-      answerDiv.style.display = 'block';
-
+      
       const formData = new FormData();
       formData.append('file', file);
       formData.append('question', questionText);
@@ -566,9 +563,7 @@ async function analyze() {
                     break;
                   }
                   if (step.type === 'done') {
-                    spinner.style.display = 'none';
                     thinkingCard.style.display = 'none';
-                    answerDiv.style.display = 'none';
                     // Show follow-up UI only after stream is complete
                     if (sessionCreated) {
                       sessionArea.style.display = 'block';
@@ -583,12 +578,7 @@ async function analyze() {
                     });
                     continue;
                   }
-                  // First step arrived - hide spinner and thinking card, hide initial message
-                  spinner.style.display = 'none';
-                  thinkingCard.style.display = 'none';
-                  answerDiv.style.display = 'none';
-                  
-                  // Collect think steps
+                  // Render step
                   if (step.type === 'think') {
                     thinkSteps.push(stepIndex);
                   }
@@ -597,6 +587,10 @@ async function analyze() {
                   const stepEl = createStepElement(step, stepIndex++, isLastThink);
                   timeline.appendChild(stepEl);
                   timeline.style.display = 'flex';
+                  
+                  // Show thinking card while waiting for next step
+                  thinkingCard.style.display = 'block';
+                  
                   // Scroll to bottom
                   timeline.scrollTop = timeline.scrollHeight;
                 } catch (e) {}
@@ -667,10 +661,6 @@ async function analyze() {
 
       hideError();
       followupBtn.disabled = true;
-      spinner.style.display = 'block';
-      if (currentMode === 'agentic') {
-        thinkingCard.style.display = 'block';
-      }
 
       try {
         // Use agentic followup endpoint for agentic mode, regular for standard
@@ -685,6 +675,9 @@ async function analyze() {
           const err = data.detail?.message ? data.detail : { message: data.detail || 'An error occurred' };
           throw new Error(err.message);
         }
+        
+        // Show thinking card while waiting
+        thinkingCard.style.display = 'block';
         
         // If agentic mode, use streaming
         if (currentMode === 'agentic') {
@@ -711,15 +704,16 @@ async function analyze() {
                     break;
                   }
                   if (step.type === 'done') {
-                    spinner.style.display = 'none';
                     thinkingCard.style.display = 'none';
                     continue;
                   }
-                  spinner.style.display = 'none';
-                  thinkingCard.style.display = 'none';
                   const stepEl = createStepElement(step, stepIndex++);
                   timeline.appendChild(stepEl);
                   timeline.style.display = 'flex';
+                  
+                  // Show thinking card while waiting for next step
+                  thinkingCard.style.display = 'block';
+                  
                   timeline.scrollTop = timeline.scrollHeight;
                 } catch (e) {}
               }
@@ -730,11 +724,11 @@ async function analyze() {
           const data = await res.json();
           answerDiv.textContent = data.answer || 'No answer received';
           answerDiv.style.display = 'block';
-          spinner.style.display = 'none';
+          thinkingCard.style.display = 'none';
         }
       } catch (err) {
         showError(err.message);
-        spinner.style.display = 'none';
+        thinkingCard.style.display = 'none';
       } finally {
         followupBtn.disabled = false;
       }

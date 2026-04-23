@@ -203,9 +203,11 @@ async def generate_agentic_stream(image_data: bytes, question: str, client, requ
                         buffered_think = ""
                         json_buffer = ""
                         depth = 0
+                        line_count = 0
                         
                         async for line in response.aiter_lines():
-                            if not line or line == '[' or line == ']':
+                            line_count += 1
+                            if not line or line == '[' or line == ']' or line.strip() == ',':
                                 continue
                             
                             json_buffer += line + "\n"
@@ -437,7 +439,7 @@ async def generate_agentic_stream_with_history(image_data: bytes, conversation_p
                         depth = 0
                         
                         async for line in response.aiter_lines():
-                            if not line or line == '[' or line == ']':
+                            if not line or line == '[' or line == ']' or line.strip() == ',':
                                 continue
                             
                             json_buffer += line + "\n"
