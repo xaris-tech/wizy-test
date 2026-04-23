@@ -2,9 +2,9 @@ import uuid
 from typing import Dict, Optional, List
 import asyncio
 
+from app.logger import get_logger, get_request_id as get_ctx_request_id
 
-# In-memory session storage
-# {session_id: {"image_data": bytes, "history": List[dict], "created_at": timestamp}}
+
 _sessions: Dict[str, Dict] = {}
 _session_lock = asyncio.Lock()
 
@@ -19,6 +19,8 @@ async def create_session(image_data: bytes, use_agentic: bool = False) -> str:
             "use_agentic": use_agentic,
             "created_at": asyncio.get_event_loop().time()
         }
+    logger = get_logger("sessions")
+    logger.info("Session created", session_id=session_id, use_agentic=use_agentic)
     return session_id
 
 
@@ -28,7 +30,9 @@ async def get_session(session_id: str) -> Optional[Dict]:
         session = _sessions.get(session_id)
         if session:
             return session
-        return None
+    logger = get_logger("sessions")
+    logger.warning("Session not found", session_id=session_id)
+    return None
 
 
 async def add_to_history(session_id: str, role: str, content: str):
@@ -43,6 +47,8 @@ async def delete_session(session_id: str):
     """Delete a session after use."""
     async with _session_lock:
         _sessions.pop(session_id, None)
+    logger = get_logger("sessions")
+    logger.info("Session deleted", session_id=session_id)
 
 
 async def cleanup_old_sessions(max_age_seconds: int = 3600):
@@ -56,3 +62,6 @@ async def cleanup_old_sessions(max_age_seconds: int = 3600):
         ]
         for sid in to_delete:
             _sessions.pop(sid, None)
+    if to_delete:
+        logger = get_logger("sessions")
+        logger.info("Cleaned up old sessions", count=len(to_delete))
