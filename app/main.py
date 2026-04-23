@@ -166,7 +166,10 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
                 {"inlineData": {"mimeType": "image/jpeg", "data": image_b64}}
             ]
         }],
-        "tools": [{"code_execution": {}}]
+        "tools": [{"code_execution": {}}],
+        "systemInstruction": {
+            "parts": [{"text": "Use code execution to analyze images. Show your thinking by writing and running Python code to inspect the image."}]
+        }
     }
 
     # Use proper retry logic like other methods
