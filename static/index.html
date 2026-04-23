@@ -138,29 +138,21 @@
       flex-direction: column;
       gap: 12px;
     }
-    .step {
+.step {
       padding: 12px 16px;
       border-radius: 8px;
       border-left: 4px solid;
+      animation: fadeSlideIn 0.4s ease forwards;
     }
-    .step-header {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 8px;
-      font-weight: 500;
-      font-size: 13px;
-    }
-    .step-content {
-      font-family: monospace;
-      font-size: 13px;
-      white-space: pre-wrap;
-      line-height: 1.5;
-      background: rgba(0,0,0,0.03);
-      padding: 10px;
-      border-radius: 4px;
-      max-height: 200px;
-      overflow-y: auto;
+    @keyframes fadeSlideIn {
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
     .step-think {
       background: #e3f2fd;
@@ -498,9 +490,19 @@
                   // First step arrived - hide spinner, hide initial message
                   spinner.style.display = 'none';
                   answerDiv.style.display = 'none';
-                  // Render each step immediately
-                  timeline.appendChild(createStepElement(step));
+                  // Render each step immediately with animation
+                  const stepEl = createStepElement(step);
+                  stepEl.style.opacity = '0';
+                  stepEl.style.transform = 'translateY(10px)';
+                  stepEl.style.transition = 'all 0.3s ease';
+                  timeline.appendChild(stepEl);
                   timeline.style.display = 'flex';
+                  
+                  // Animate in
+                  requestAnimationFrame(() => {
+                    stepEl.style.opacity = '1';
+                    stepEl.style.transform = 'translateY(0)';
+                  });
                   // Scroll to bottom
                   timeline.scrollTop = timeline.scrollHeight;
                 } catch (e) {}
