@@ -204,26 +204,31 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
                         buffered_think = ""
                         json_buffer = ""
                         depth = 0
+                        line_count = 0
                         
                         async for line in response.aiter_lines():
+                            line_count += 1
                             if not line:
                                 continue
                             
-                            json_buffer += line
+                            json_buffer += line + "\n"
                             
                             # Track JSON braces to handle multi-line objects
-                            for char in json_buffer:
+                            for char in line:
                                 if char == '{':
                                     depth += 1
                                 elif char == '}':
                                     depth -= 1
                             
                             if depth == 0 and json_buffer.strip():
+                                logger.info(f"Line {line_count}: complete JSON, depth=0")
                                 # Complete JSON object
                                 try:
                                     data = json.loads(json_buffer)
-                                except json.JSONDecodeError:
+                                except json.JSONDecodeError as e:
+                                    logger.warning(f"JSON decode error: {e}, buffer: {json_buffer[:100]}")
                                     json_buffer = ""
+                                    depth = 0
                                     continue
                                 
                                 candidates = data.get("candidates", [])
