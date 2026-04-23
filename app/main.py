@@ -216,29 +216,21 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
 
     content = candidates[0].get("content", {})
     parts = content.get("parts", [])
-    
-    logger.info(f"Got {len(parts)} parts in response")
-    for i, p in enumerate(parts):
-        logger.info(f"  Part {i}: {list(p.keys())}")
 
     for i, part in enumerate(parts):
         step = {}
         if "executableCode" in part:
             step = {"type": "code", "content": part["executableCode"].get("code", ""), "language": "python"}
-            logger.info(f"  Yielding CODE step")
         elif "codeExecutionResult" in part:
             result = part["codeExecutionResult"]
             step = {"type": "output", "content": result.get("output", ""), "outcome": result.get("outcome", "")}
             if "inlineData" in result:
                 step["image_data"] = result["inlineData"].get("data", "")
                 step["image_mime_type"] = result["inlineData"].get("mimeType", "image/png")
-            logger.info(f"  Yielding OUTPUT step")
         elif "inlineData" in part:
             step = {"type": "observe", "content": "Intermediate image", "image_data": part["inlineData"].get("data", ""), "image_mime_type": part["inlineData"].get("mimeType", "image/png")}
-            logger.info(f"  Yielding OBSERVE step with image")
         elif "text" in part and part.get("text"):
             step = {"type": "think", "content": part.get("text", "")}
-            logger.info(f"  Yielding THINK step")
 
         if step:
             yield "data: " + json.dumps(step) + "\n\n"
