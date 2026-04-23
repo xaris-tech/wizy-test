@@ -18,6 +18,9 @@ import httpx
 from app.gemini_client import get_gemini_client
 from app.middleware import RequestIDMiddleware
 
+# Rate limiting semaphore for streaming requests
+stream_semaphore = asyncio.Semaphore(2)
+
 import time
 
 load_dotenv()
@@ -150,11 +153,10 @@ async def analyze_agentic(
 
 
 async def generate_agentic_stream(image_data: bytes, question: str, client) -> AsyncGenerator[str, None]:
-    """Stream agentic steps as they're generated using Gemini's streaming API."""
+    """Stream agentic steps as they're generated using Gemini's streaming API with true streaming."""
     from app.gemini_client import GEMINI_API_STREAM_URL
     
     image_b64 = base64.b64encode(image_data).decode("utf-8")
-    import time
     
     stream_url = f"{GEMINI_API_STREAM_URL}?key={client.current_key}"
     
@@ -174,109 +176,114 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
     retry_count = 0
     max_retries = 3
     
-    while retry_count <= max_retries:
-        try:
-            with httpx.Client(timeout=120.0) as hpClient:
-                response = hpClient.post(stream_url, json=payload)
-                
-                logger.info(f"Stream response status: {response.status_code}")
-                
-                if response.status_code in (429, 503):
-                    if retry_count < max_retries:
-                        wait_time = 2 ** retry_count
-                        logger.warning(f"Rate limit (429/503) on key #{client.current_key_index + 1}. Waiting {wait_time}s...")
-                        time.sleep(wait_time)
-                        retry_count += 1
-                        continue
-                    else:
-                        logger.warning(f"Max retries for key #{client.current_key_index + 1}, rotating...")
-                        client.rotate_key()
-                        stream_url = f"{GEMINI_API_STREAM_URL}?key={client.current_key}"
-                        retry_count = 0
-                        continue
-                
-                response.raise_for_status()
-                break
-                
-        except Exception as e:
-            if retry_count < max_retries:
-                wait_time = 2 ** retry_count
-                logger.warning(f"Error: {e}. Waiting {wait_time}s...")
-                time.sleep(wait_time)
-                retry_count += 1
-                continue
-            yield "data: " + json.dumps({"error": get_error_message(e)}) + "\n\n"
-            return
+    async with stream_semaphore:
+        while retry_count <= max_retries:
+            try:
+                async with httpx.AsyncClient(timeout=120.0) as hpClient:
+                    async with hpClient.stream("POST", stream_url, json=payload) as response:
+                        logger.info(f"Stream response status: {response.status_code}")
+                        
+                        if response.status_code in (429, 503):
+                            if retry_count < max_retries:
+                                wait_time = 2 ** retry_count
+                                logger.warning(f"Rate limit (429/503) on key #{client.current_key_index + 1}. Waiting {wait_time}s...")
+                                await asyncio.sleep(wait_time)
+                                retry_count += 1
+                                continue
+                            else:
+                                logger.warning(f"Max retries for key #{client.current_key_index + 1}, rotating...")
+                                client.rotate_key()
+                                stream_url = f"{GEMINI_API_STREAM_URL}?key={client.current_key}"
+                                retry_count = 0
+                                continue
+                        
+                        response.raise_for_status()
+                        
+                        # True streaming - process each line as it arrives
+                        final_answer = ""
+                        buffered_think = ""
+                        json_buffer = ""
+                        depth = 0
+                        
+                        async for line in response.aiter_lines():
+                            if not line:
+                                continue
+                            
+                            json_buffer += line
+                            
+                            # Track JSON braces to handle multi-line objects
+                            for char in json_buffer:
+                                if char == '{':
+                                    depth += 1
+                                elif char == '}':
+                                    depth -= 1
+                            
+                            if depth == 0 and json_buffer.strip():
+                                # Complete JSON object
+                                try:
+                                    data = json.loads(json_buffer)
+                                except json.JSONDecodeError:
+                                    json_buffer = ""
+                                    continue
+                                
+                                candidates = data.get("candidates", [])
+                                if not candidates:
+                                    json_buffer = ""
+                                    continue
+                                
+                                content = candidates[0].get("content", {})
+                                parts = content.get("parts", [])
+                                
+                                for part in parts:
+                                    step = {}
+                                    if "executableCode" in part:
+                                        if buffered_think:
+                                            yield "data: " + json.dumps({"type": "think", "content": buffered_think}) + "\n\n"
+                                            await asyncio.sleep(0.05)
+                                            buffered_think = ""
+                                        step = {"type": "code", "content": part["executableCode"].get("code", ""), "language": "python"}
+                                    elif "codeExecutionResult" in part:
+                                        result = part["codeExecutionResult"]
+                                        step = {"type": "output", "content": result.get("output", ""), "outcome": result.get("outcome", "")}
+                                        if "inlineData" in result:
+                                            step["image_data"] = result["inlineData"].get("data", "")
+                                            step["image_mime_type"] = result["inlineData"].get("mimeType", "image/png")
+                                    elif "inlineData" in part:
+                                        step = {"type": "observe", "content": "Intermediate image", "image_data": part["inlineData"].get("data", ""), "image_mime_type": part["inlineData"].get("mimeType", "image/png")}
+                                    elif "text" in part and part.get("text"):
+                                        buffered_think += part.get("text", "")
+                                        final_answer = part.get("text", "")
 
-    response_text = response.text.strip().strip('[]').strip()
-    
-    json_objects = []
-    depth = 0
-    current_start = 0
-    for i, char in enumerate(response_text):
-        if char == '{':
-            if depth == 0:
-                current_start = i
-            depth += 1
-        elif char == '}':
-            depth -= 1
-            if depth == 0:
-                json_objects.append(response_text[current_start:i+1])
-    
-    logger.info(f"Found {len(json_objects)} JSON objects")
-    
-    final_answer = ""
-    buffered_think = ""
-    
-    for i, json_str in enumerate(json_objects):
-        try:
-            data = json.loads(json_str)
-        except:
-            logger.warning(f"Failed to parse object {i}")
-            continue
-        
-        logger.info(f"Object {i}: {list(data.keys())}")
-        
-        candidates = data.get("candidates", [])
-        if not candidates:
-            continue
-            
-        content = candidates[0].get("content", {})
-        parts = content.get("parts", [])
-        
-        for part in parts:
-            step = {}
-            if "executableCode" in part:
-                # Flush buffered think before code
-                if buffered_think:
-                    yield "data: " + json.dumps({"type": "think", "content": buffered_think}) + "\n\n"
-                    await asyncio.sleep(0.3)
-                    buffered_think = ""
-                step = {"type": "code", "content": part["executableCode"].get("code", ""), "language": "python"}
-            elif "codeExecutionResult" in part:
-                result = part["codeExecutionResult"]
-                step = {"type": "output", "content": result.get("output", ""), "outcome": result.get("outcome", "")}
-                if "inlineData" in result:
-                    step["image_data"] = result["inlineData"].get("data", "")
-                    step["image_mime_type"] = result["inlineData"].get("mimeType", "image/png")
-            elif "inlineData" in part:
-                step = {"type": "observe", "content": "Intermediate image", "image_data": part["inlineData"].get("data", ""), "image_mime_type": part["inlineData"].get("mimeType", "image/png")}
-            elif "text" in part and part.get("text"):
-                # Buffer think text instead of yielding immediately
-                buffered_think += part.get("text", "")
-                final_answer = part.get("text", "")
-
-            if step:
-                logger.info(f"  Yielding step {step['type']}")
-                yield "data: " + json.dumps(step) + "\n\n"
-                await asyncio.sleep(0.3)
-    
-    # Flush any remaining think at the end
-    if buffered_think:
-        yield "data: " + json.dumps({"type": "think", "content": buffered_think}) + "\n\n"
-        await asyncio.sleep(0.3)
-    
-    logger.info(f"Final answer: {final_answer[:50] if final_answer else 'none'}")
+                                    if step:
+                                        yield "data: " + json.dumps(step) + "\n\n"
+                                        await asyncio.sleep(0.05)
+                                
+                                json_buffer = ""
+                        
+                        # Flush remaining think
+                        if buffered_think:
+                            yield "data: " + json.dumps({"type": "think", "content": buffered_think}) + "\n\n"
+                        
+                        return
+                        
+            except httpx.HTTPStatusError as e:
+                if retry_count < max_retries:
+                    wait_time = 2 ** retry_count
+                    logger.warning(f"Error: {e}. Waiting {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    retry_count += 1
+                    continue
+                yield "data: " + json.dumps({"error": get_error_message(e)}) + "\n\n"
+                return
+            except Exception as e:
+                if retry_count < max_retries:
+                    wait_time = 2 ** retry_count
+                    logger.warning(f"Error: {e}. Waiting {wait_time}s...")
+                    await asyncio.sleep(wait_time)
+                    retry_count += 1
+                    continue
+                yield "data: " + json.dumps({"error": get_error_message(e)}) + "\n\n"
+                return
 
 
 @app.post("/api/analyze/agentic/stream")
