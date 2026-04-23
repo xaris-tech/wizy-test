@@ -208,24 +208,37 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
             yield "data: " + json.dumps({"error": get_error_message(e)}) + "\n\n"
             return
 
-    # Parse streaming response - it's multiple JSON objects separated by newlines
-    response_text = response.text
-    logger.info(f"Stream response length: {len(response_text)}")
+    # Parse streaming response - it's a single JSON object with pretty printing
+    response_text = response.text.strip().strip('[]').strip()
+    
+    # Split by },{ to get individual objects
+    import re
+    # Match { ... } patterns
+    json_objects = []
+    depth = 0
+    current_start = 0
+    for i, char in enumerate(response_text):
+        if char == '{':
+            if depth == 0:
+                current_start = i
+            depth += 1
+        elif char == '}':
+            depth -= 1
+            if depth == 0:
+                json_objects.append(response_text[current_start:i+1])
+    
+    logger.info(f"Found {len(json_objects)} JSON objects")
     
     final_answer = ""
-    line_count = 0
     
-    for line in response_text.strip().split('\n'):
-        if not line.strip():
-            continue
-        line_count += 1
+    for i, json_str in enumerate(json_objects):
         try:
-            data = json.loads(line)
+            data = json.loads(json_str)
         except:
-            logger.warning(f"Failed to parse line: {line[:100]}")
+            logger.warning(f"Failed to parse object {i}")
             continue
             
-        logger.info(f"Line {line_count}: {list(data.keys())}")
+        logger.info(f"Object {i}: {list(data.keys())}")
         
         candidates = data.get("candidates", [])
         if not candidates:
@@ -252,12 +265,12 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
                 step = {"type": "think", "content": part.get("text", "")}
                 final_answer = part.get("text", "")
 
-            if step:
+if step:
                 logger.info(f"  Yielding step {step['type']}")
                 yield "data: " + json.dumps(step) + "\n\n"
                 await asyncio.sleep(0.3)
     
-    logger.info(f"Total lines: {line_count}, final_answer: {final_answer[:50] if final_answer else 'none'}")
+    logger.info(f"Final answer: {final_answer[:50] if final_answer else 'none'}")
 
 
 @app.post("/api/analyze/agentic/stream")
