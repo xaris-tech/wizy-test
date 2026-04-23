@@ -18,6 +18,8 @@ import httpx
 from app.gemini_client import get_gemini_client
 from app.middleware import RequestIDMiddleware
 
+import time
+
 load_dotenv()
 
 
@@ -155,6 +157,8 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
     # For now, let's use a simpler approach: stream partial results
     # The model generates all at once, but we can chunk the response
     
+    import time
+    
     payload = {
         "contents": [{
             "parts": [
@@ -165,33 +169,62 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
         "tools": [{"code_execution": {}}]
     }
 
-    with httpx.Client(timeout=120.0) as hpClient:
-        response = hpClient.post(client.current_url, json=payload)
-        response.raise_for_status()
-        data = response.json()
-
-        candidates = data.get("candidates", [])
-        if not candidates:
+    # Use proper retry logic like other methods
+    retry_count = 0
+    max_retries = 3
+    
+    while retry_count <= max_retries:
+        try:
+            with httpx.Client(timeout=120.0) as hpClient:
+                response = hpClient.post(client.current_url, json=payload)
+                
+                if response.status_code in (429, 503):
+                    if retry_count < max_retries:
+                        wait_time = 2 ** retry_count
+                        logger.warning(f"Rate limit (429/503). Waiting {wait_time}s...")
+                        time.sleep(wait_time)
+                        retry_count += 1
+                        continue
+                    else:
+                        raise Exception("Max retries reached")
+                
+                response.raise_for_status()
+                break
+                
+        except Exception as e:
+            if retry_count < max_retries:
+                wait_time = 2 ** retry_count
+                logger.warning(f"Error: {e}. Waiting {wait_time}s...")
+                time.sleep(wait_time)
+                retry_count += 1
+                continue
             yield "data: " + json.dumps({"error": get_error_message(e)}) + "\n\n"
             return
 
-        content = candidates[0].get("content", {})
-        parts = content.get("parts", [])
+    data = response.json()
 
-        for i, part in enumerate(parts):
-            step = {}
-            if "executableCode" in part:
-                step = {"type": "code", "content": part["executableCode"].get("code", ""), "language": "python"}
-            elif "codeExecutionResult" in part:
-                result = part["codeExecutionResult"]
-                step = {"type": "output", "content": result.get("output", ""), "outcome": result.get("outcome", "")}
-                if "inlineData" in result:
-                    step["image_data"] = result["inlineData"].get("data", "")
-                    step["image_mime_type"] = result["inlineData"].get("mimeType", "image/png")
-            elif "inlineData" in part:
-                step = {"type": "observe", "content": "Intermediate image", "image_data": part["inlineData"].get("data", ""), "image_mime_type": part["inlineData"].get("mimeType", "image/png")}
-            elif "text" in part and part.get("text"):
-                step = {"type": "think", "content": part.get("text", "")}
+    candidates = data.get("candidates", [])
+    if not candidates:
+        yield "data: " + json.dumps({"error": get_error_message(e)}) + "\n\n"
+        return
+
+    content = candidates[0].get("content", {})
+    parts = content.get("parts", [])
+
+    for i, part in enumerate(parts):
+        step = {}
+        if "executableCode" in part:
+            step = {"type": "code", "content": part["executableCode"].get("code", ""), "language": "python"}
+        elif "codeExecutionResult" in part:
+            result = part["codeExecutionResult"]
+            step = {"type": "output", "content": result.get("output", ""), "outcome": result.get("outcome", "")}
+            if "inlineData" in result:
+                step["image_data"] = result["inlineData"].get("data", "")
+                step["image_mime_type"] = result["inlineData"].get("mimeType", "image/png")
+        elif "inlineData" in part:
+            step = {"type": "observe", "content": "Intermediate image", "image_data": part["inlineData"].get("data", ""), "image_mime_type": part["inlineData"].get("mimeType", "image/png")}
+        elif "text" in part and part.get("text"):
+            step = {"type": "think", "content": part.get("text", "")}
 
             if step:
                 yield "data: " + json.dumps(step) + "\n\n"
