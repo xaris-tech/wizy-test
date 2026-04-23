@@ -443,7 +443,7 @@
       return stepDiv;
     }
 
-    async function analyze() {
+async function analyze() {
       const file = fileInput.files[0];
       if (!file) {
         showError('Please select an image first.');
@@ -481,6 +481,20 @@
             const data = await res.json();
             const err = data.detail?.message ? data.detail : { message: data.detail || 'An error occurred' };
             throw new Error(err.message);
+          }
+          
+          // Create session for agentic follow-up
+          const sessionFormData = new FormData();
+          sessionFormData.append('file', file);
+          sessionFormData.append('agentic', 'true');
+          const sessionRes = await fetch('/api/analyze/session', {
+            method: 'POST',
+            body: sessionFormData
+          });
+          if (sessionRes.ok) {
+            const sessionData = await sessionRes.json();
+            currentSessionId = sessionData.session_id;
+            sessionArea.style.display = 'block';
           }
           
           const reader = res.body.getReader();
@@ -531,10 +545,10 @@
             body: formData
           });
           const data = await res.json();
-if (!res.ok) {
-              const err = data.detail?.message ? data.detail : { message: data.detail || 'An error occurred' };
-              throw new Error(err.message);
-            }
+          if (!res.ok) {
+            const err = data.detail?.message ? data.detail : { message: data.detail || 'An error occurred' };
+            throw new Error(err.message);
+          }
           
           // Create session for follow-up
           const sessionRes = await fetch('/api/analyze/session', {
@@ -589,18 +603,56 @@ if (!res.ok) {
       spinner.style.display = 'block';
 
       try {
-        const res = await fetch('/api/analyze/followup', {
+        // Use agentic followup endpoint with streaming
+        const res = await fetch('/api/analyze/agentic/followup', {
           method: 'POST',
           body: new URLSearchParams({ session_id: currentSessionId, question: q })
         });
-        const data = await res.json();
-        if (!res.ok) {
-            const err = data.detail?.message ? data.detail : { message: data.detail || 'An error occurred' };
-            throw new Error(err.message);
-          }
         
-        answerDiv.textContent = data.answer || 'No answer received';
-        answerDiv.style.display = 'block';
+        if (!res.ok) {
+          const data = await res.json();
+          const err = data.detail?.message ? data.detail : { message: data.detail || 'An error occurred' };
+          throw new Error(err.message);
+        }
+        
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+        let stepIndex = 0;
+        
+        // Clear timeline for new response
+        timeline.innerHTML = '';
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const step = JSON.parse(line.slice(6));
+                if (step.error) {
+                  const err = step.error.message || step.error;
+                  showError(err);
+                  break;
+                }
+                if (step.type === 'done') {
+                  spinner.style.display = 'none';
+                  continue;
+                }
+                spinner.style.display = 'none';
+                const stepEl = createStepElement(step, stepIndex++);
+                timeline.appendChild(stepEl);
+                timeline.style.display = 'flex';
+                timeline.scrollTop = timeline.scrollHeight;
+              } catch (e) {}
+            }
+          }
+        }
       } catch (err) {
         showError(err.message);
       } finally {
