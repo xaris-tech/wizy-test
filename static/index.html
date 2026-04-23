@@ -298,6 +298,7 @@
     <div class="question-area">
       <label for="question">What would you like to know?</label>
       <div class="preset-btns">
+        <button class="preset-btn" onclick="setPreset('Count the Items')">🔢 Count the Items</button>
         <button class="preset-btn" onclick="setPreset('Read Serial Number')">📋 Read Serial Number</button>
         <button class="preset-btn" onclick="setPreset('Identify all components')">🔧 Identify Components</button>
         <button class="preset-btn" onclick="setPreset('Describe the condition')">📝 Describe Condition</button>
@@ -337,6 +338,7 @@
     const followup = document.getElementById('followup');
     const followupBtn = document.getElementById('followupBtn');
     let currentSessionId = null;
+    let currentAgenticSessionId = null;
 
     uploadArea.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', handleFile);
@@ -501,7 +503,7 @@ async function analyze() {
           let sessionCreated = false;
           if (sessionRes.ok) {
             const sessionData = await sessionRes.json();
-            currentSessionId = sessionData.session_id;
+            currentAgenticSessionId = sessionData.session_id;
             sessionCreated = true;
           }
           
@@ -614,6 +616,7 @@ async function analyze() {
 
     function startNew() {
       currentSessionId = null;
+      currentAgenticSessionId = null;
       sessionArea.style.display = 'none';
       clearResults();
       fileInput.value = '';
@@ -623,17 +626,19 @@ async function analyze() {
 
     async function handleFollowup() {
       const q = followup.value.trim();
-      if (!q || !currentSessionId) return;
+      const sessionId = currentMode === 'agentic' ? currentAgenticSessionId : currentSessionId;
+      if (!q || !sessionId) return;
 
       hideError();
       followupBtn.disabled = true;
       spinner.style.display = 'block';
 
       try {
-        // Use agentic followup endpoint with streaming
-        const res = await fetch('/api/analyze/agentic/followup', {
+        // Use agentic followup endpoint for agentic mode, regular for standard
+        const endpoint = currentMode === 'agentic' ? '/api/analyze/agentic/followup' : '/api/analyze/followup';
+        const res = await fetch(endpoint, {
           method: 'POST',
-          body: new URLSearchParams({ session_id: currentSessionId, question: q })
+          body: new URLSearchParams({ session_id: sessionId, question: q })
         });
         
         if (!res.ok) {
@@ -642,49 +647,55 @@ async function analyze() {
           throw new Error(err.message);
         }
         
-        const reader = res.body.getReader();
-        const decoder = new TextDecoder();
-        let buffer = '';
-        let stepIndex = 0;
-        
-        // Clear timeline for new response
-        timeline.innerHTML = '';
-        
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          buffer += decoder.decode(value, { stream: true });
+        // If agentic mode, use streaming
+        if (currentMode === 'agentic') {
+          const reader = res.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
+          let stepIndex = 0;
           
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
-          
-          for (const line of lines) {
-            if (line.startsWith('data: ')) {
-              try {
-                const step = JSON.parse(line.slice(6));
-                if (step.error) {
-                  const err = step.error.message || step.error;
-                  showError(err);
-                  break;
-                }
-                if (step.type === 'done') {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            buffer += decoder.decode(value, { stream: true });
+            
+            const lines = buffer.split('\n');
+            buffer = lines.pop() || '';
+            
+            for (const line of lines) {
+              if (line.startsWith('data: ')) {
+                try {
+                  const step = JSON.parse(line.slice(6));
+                  if (step.error) {
+                    const err = step.error.message || step.error;
+                    showError(err);
+                    break;
+                  }
+                  if (step.type === 'done') {
+                    spinner.style.display = 'none';
+                    continue;
+                  }
                   spinner.style.display = 'none';
-                  continue;
-                }
-                spinner.style.display = 'none';
-                const stepEl = createStepElement(step, stepIndex++);
-                timeline.appendChild(stepEl);
-                timeline.style.display = 'flex';
-                timeline.scrollTop = timeline.scrollHeight;
-              } catch (e) {}
+                  const stepEl = createStepElement(step, stepIndex++);
+                  timeline.appendChild(stepEl);
+                  timeline.style.display = 'flex';
+                  timeline.scrollTop = timeline.scrollHeight;
+                } catch (e) {}
+              }
             }
           }
+        } else {
+          // Standard mode - just show the answer
+          const data = await res.json();
+          answerDiv.textContent = data.answer || 'No answer received';
+          answerDiv.style.display = 'block';
+          spinner.style.display = 'none';
         }
       } catch (err) {
         showError(err.message);
+        spinner.style.display = 'none';
       } finally {
         followupBtn.disabled = false;
-        spinner.style.display = 'none';
       }
     }
   </script>
