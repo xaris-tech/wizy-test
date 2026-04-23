@@ -208,12 +208,8 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
             yield "data: " + json.dumps({"error": get_error_message(e)}) + "\n\n"
             return
 
-    # Parse streaming response - it's a single JSON object with pretty printing
     response_text = response.text.strip().strip('[]').strip()
     
-    # Split by },{ to get individual objects
-    import re
-    # Match { ... } patterns
     json_objects = []
     depth = 0
     current_start = 0
@@ -237,8 +233,8 @@ async def generate_agentic_stream(image_data: bytes, question: str, client) -> A
         except:
             logger.warning(f"Failed to parse object {i}")
             continue
-            
-logger.info(f"Object {i}: {list(data.keys())}")
+        
+        logger.info(f"Object {i}: {list(data.keys())}")
         
         candidates = data.get("candidates", [])
         if not candidates:
