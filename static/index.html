@@ -670,6 +670,13 @@ async function analyze() {
       followupBtn.disabled = true;
       followup.value = '';
 
+      // Move timeline inside sessionArea BEFORE streaming starts (so steps appear below form)
+      const timeline = document.getElementById('timeline');
+      const sessionArea = document.getElementById('sessionArea');
+      if (timeline && sessionArea && !sessionArea.contains(timeline)) {
+        sessionArea.appendChild(timeline);
+      }
+
       try {
         // Use agentic followup endpoint for agentic mode, regular for standard
         const endpoint = currentMode === 'agentic' ? '/api/analyze/agentic/followup' : '/api/analyze/followup';
@@ -714,13 +721,6 @@ async function analyze() {
                   }
                   if (step.type === 'done') {
                     thinkingCard.style.display = 'none';
-                    
-                    // Move timeline inside sessionArea (below the form) after streaming completes
-                    const timeline = document.getElementById('timeline');
-                    const sessionArea = document.getElementById('sessionArea');
-                    if (timeline && sessionArea && !sessionArea.contains(timeline)) {
-                      sessionArea.appendChild(timeline);
-                    }
                     
                     // Convert all think steps except last to "Thinking"
                     const allSteps = timeline.querySelectorAll('.step');
