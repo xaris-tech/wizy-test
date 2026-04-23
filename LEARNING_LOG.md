@@ -3,8 +3,8 @@
 ## Hours Spent
 
 - **Day 1**: 5 hours (9AM - 2AM)
-- **Day 2**: 5 hours (9AM - 2PM)
-- **Total**: ~12 hours
+- **Day 2**: 6 hours (9AM - 3PM)
+- **Total**: ~11 hours
 
 ## What I Got Stuck On & How I Got Unstuck
 
@@ -23,7 +23,7 @@
 ## AI Coding Tools Used
 
 - **Claude (Anthropic)**: Initial project planning and architecture decisions
-- **ChatGPT (OpenAI)**: Reference for alternative coding styles when Opencode struggled
+- **ChatGPT (OpenAI) and Gemini (Google) **: Reference for alternative coding styles when Opencode struggled
 - **Opencode (MiniMax 2.5 Free)**: Main coding tool - acted as orchestrator and wrote most of the code
 
 ## How I Validated AI-Generated Code

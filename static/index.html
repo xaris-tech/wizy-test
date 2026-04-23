@@ -669,13 +669,6 @@ async function analyze() {
       hideError();
       followupBtn.disabled = true;
       followup.value = '';
-      
-      // Move timeline inside sessionArea for follow-up responses
-      const existingTimeline = document.getElementById('timeline');
-      const sessionArea = document.getElementById('sessionArea');
-      if (existingTimeline && sessionArea && !sessionArea.contains(existingTimeline)) {
-        sessionArea.appendChild(existingTimeline);
-      }
 
       try {
         // Use agentic followup endpoint for agentic mode, regular for standard
@@ -693,6 +686,13 @@ async function analyze() {
         
         // Show thinking card while waiting
         thinkingCard.style.display = 'block';
+        
+        // Move timeline inside sessionArea for follow-up responses
+        const existingTimeline = document.getElementById('timeline');
+        const sessionArea = document.getElementById('sessionArea');
+        if (existingTimeline && sessionArea && !sessionArea.contains(existingTimeline)) {
+          sessionArea.appendChild(existingTimeline);
+        }
         
         // If agentic mode, use streaming
         if (currentMode === 'agentic') {
