@@ -656,8 +656,13 @@ async function analyze() {
       const timeline = document.getElementById('timeline');
       const container = document.querySelector('.container');
       const sessionArea = document.getElementById('sessionArea');
+      const thinkingCard = document.getElementById('thinkingCard');
       if (timeline && container && sessionArea) {
         container.insertBefore(timeline, sessionArea);
+      }
+      // Move thinkingCard back to original position
+      if (thinkingCard && container && sessionArea) {
+        container.insertBefore(thinkingCard, sessionArea);
       }
     }
 
@@ -687,11 +692,18 @@ async function analyze() {
         // Show thinking card while waiting
         thinkingCard.style.display = 'block';
         
-        // Move timeline inside sessionArea for follow-up responses
-        const existingTimeline = document.getElementById('timeline');
+        // Move timeline and thinking card inside sessionArea for follow-up responses
         const sessionArea = document.getElementById('sessionArea');
-        if (existingTimeline && sessionArea && !sessionArea.contains(existingTimeline)) {
-          sessionArea.appendChild(existingTimeline);
+        const timeline = document.getElementById('timeline');
+        
+        // Move timeline inside sessionArea if not already there
+        if (timeline && sessionArea && !sessionArea.contains(timeline)) {
+          sessionArea.appendChild(timeline);
+        }
+        
+        // Move thinkingCard inside sessionArea so it appears in the right place
+        if (thinkingCard && sessionArea && !sessionArea.contains(thinkingCard)) {
+          sessionArea.insertBefore(thinkingCard, sessionArea.firstChild);
         }
         
         // If agentic mode, use streaming
@@ -721,6 +733,14 @@ async function analyze() {
                   }
                   if (step.type === 'done') {
                     thinkingCard.style.display = 'none';
+                    
+                    // Move thinkingCard back to original position
+                    const container = document.querySelector('.container');
+                    const sessionArea = document.getElementById('sessionArea');
+                    if (thinkingCard && container && sessionArea) {
+                      container.insertBefore(thinkingCard, sessionArea);
+                    }
+                    
                     // Convert all think steps except last to "Thinking"
                     const allSteps = timeline.querySelectorAll('.step');
                     thinkSteps.forEach((idx, i) => {
